@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tableau de Bord Superviseur — PROSSAHEL MC</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<style>
+*{box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif}
+body{margin:0;background:#f5f7f6;color:#1c2b26}
+header{background:linear-gradient(135deg,#0b6e4f,#14a37f);color:#fff;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+header h1{margin:0;font-size:20px}
+header small{opacity:.9;font-size:13px}
+main{padding:16px;max-width:1400px;margin:auto}
+.card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:14px}
+.stat{background:#fff;border:1px solid #d9e2de;border-radius:8px;padding:12px;text-align:center}
+.stat .v{font-size:24px;font-weight:700;color:#0b6e4f}
+.stat .l{font-size:12px;color:#666}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+th,td{border:1px solid #d9e2de;padding:6px;text-align:left}
+th{background:#e8f2ee;font-weight:600;font-size:12px}
+.small{font-size:12px;color:#666}
+.updated{background:#e8f2ee;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:600;color:#0b6e4f;margin-bottom:14px}
+h2{color:#0b6e4f;font-size:16px;margin:20px 0 10px}
+.refresh{position:fixed;bottom:20px;right:20px;background:#0b6e4f;color:#fff;border:none;width:56px;height:56px;border-radius:50%;font-size:24px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📊 Tableau de Bord — Superviseur PROSSAHEL MC</h1>
+  <small>Données en temps réel de <span id="agentName">...</span></small>
+</header>
+
+<main>
+  <div class="updated" id="updated">⏳ Connexion à Firebase...</div>
+
+  <h2>📈 Synthèse globale</h2>
+  <div class="grid" id="statsGlobales"></div>
+
+  <h2>📊 Sensibilisations</h2>
+  <div class="grid" id="statsSens"></div>
+
+  <h2>🩺 Malnutrition</h2>
+  <div class="grid" id="statsMalnut"></div>
+
+  <h2>🏥 Références</h2>
+  <div class="grid" id="statsRefs"></div>
+
+  <h2>🚶 Visites à Domicile</h2>
+  <div class="grid" id="statsVAD"></div>
+
+  <h2>📋 Détail — Dernières sensibilisations</h2>
+  <div class="card"><div id="tblSens"></div></div>
+
+  <h2>🏥 Détail — Dernières références</h2>
+  <div class="card"><div id="tblRefs"></div></div>
+
+  <h2>🧒 Détail — Liste malnutrition (10 derniers)</h2>
+  <div class="card"><div id="tblLMN"></div></div>
+</main>
+
+<button class="refresh" onclick="location.reload()">🔄</button>
+
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBofWV-1_PPtS7m-jNg_1wZnymlaFvdLrE",
+  authDomain: "prossahel-mc-9ea63.firebaseapp.com",
+  projectId: "prossahel-mc-9ea63",
+  storageBucket: "prossahel-mc-9ea63.firebasestorage.app",
+  messagingSenderId: "244040456263",
+  appId: "1:244040456263:web:281ea4f709af66cf3f7962"
+};
+
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.firestore();
+
+function sc(v,l){return `<div class="stat"><div class="v">${v}</div><div class="l">${l}</div></div>`;}
+
+function buildTable(headers,rows){
+  if(!rows.length) return '<p class="small">Aucune donnée</p>';
+  let h='<table><thead><tr>'+headers.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>';
+  rows.forEach(r=>{h+='<tr>'+r.map(c=>'<td>'+(c===undefined||c===null?'':c)+'</td>').join('')+'</tr>';});
+  return h+'</tbody></table>';
+}
+
+db.collection('prossahel').onSnapshot(snap => {
+  const docs = snap.docs.map(d => d.data());
+  if(!docs.length){
+    document.getElementById('updated').textContent = '⏳ Aucune donnée reçue pour l\'instant';
+    return;
+  }
+  const allData = {sens:[],reco:[],refs:[],vad:[],sm:[],mn:[],va:[],marche:[],
+                   lmn:[],ld:[],lh:[],lsm:[],lc:[],lv:[],lmp:[],
+                   alertes:[],mvts:[],prot:[],ohMen:[]};
+  let lastUpdate = null;
+  docs.forEach(d => {
+    if(d.data){
+      Object.keys(allData).forEach(key => {
+        if(Array.isArray(d.data[key])) allData[key] = allData[key].concat(d.data[key]);
+      });
+    }
+    if(d.lastUpdate && (!lastUpdate || d.lastUpdate > lastUpdate)) lastUpdate = d.lastUpdate;
+  });
+
+  document.getElementById('agentName').textContent = docs.map(d => d.user || d.deviceId).join(', ');
+  const date = lastUpdate ? new Date(lastUpdate.seconds*1000).toLocaleString('fr-FR') : '—';
+  document.getElementById('updated').textContent = '🟢 Données reçues — Mise à jour : ' + date;
+
+  document.getElementById('statsGlobales').innerHTML =
+    sc(docs.length,'Appareils') +
+    sc(allData.sens.length,'Séances') +
+    sc(allData.refs.length,'Références') +
+    sc(allData.lmn.length,'Malnutris') +
+    sc(allData.mn.length,'MUAC');
+
+  const totalPart = allData.sens.reduce((a,b)=>a+(b.h||0)+(b.f||0)+(b.j||0),0);
+  document.getElementById('statsSens').innerHTML =
+    sc(allData.sens.length,'Séances') +
+    sc(totalPart,'Participants') +
+    sc(allData.sens.reduce((a,b)=>a+(b.ref||0),0),'Référés clinique') +
+    sc(new Set(allData.sens.map(x=>x.vil)).size,'Villages');
+
+  document.getElementById('statsMalnut').innerHTML =
+    sc(allData.mn.reduce((a,b)=>a+(b.total||0),0),'Dépistés') +
+    sc(allData.mn.reduce((a,b)=>a+(b.vert||0),0),'🟢 Vert') +
+    sc(allData.mn.reduce((a,b)=>a+(b.jaune||0),0),'🟡 Jaune') +
+    sc(allData.mn.reduce((a,b)=>a+(b.rouge||0),0),'🔴 Rouge');
+
+  document.getElementById('statsRefs').innerHTML =
+    sc(allData.refs.length,'Référés') +
+    sc(allData.refs.filter(r=>r.arr==='Oui').length,'Arrivés clinique');
+
+  document.getElementById('statsVAD').innerHTML =
+    sc(allData.vad.reduce((a,b)=>a+(b.men||0),0),'Ménages') +
+    sc(allData.vad.reduce((a,b)=>a+(b.diab||0),0),'Diabétiques') +
+    sc(allData.vad.reduce((a,b)=>a+(b.hta||0),0),'HTA') +
+    sc(allData.vad.reduce((a,b)=>a+(b.tb||0),0),'TB');
+
+  document.getElementById('tblSens').innerHTML = buildTable(
+    ['Date','Village','Thème','H','F','J','Total','Référés'],
+    allData.sens.slice(-20).map(r=>[r.date,r.vil,r.th,r.h,r.f,r.j,(r.h||0)+(r.f||0)+(r.j||0),r.ref])
+  );
+
+  document.getElementById('tblRefs').innerHTML = buildTable(
+    ['Date','N° RCCNPSS','Village','Motif','Arrivé'],
+    allData.refs.slice(-20).map(r=>[r.date,r.rccnpss||'',r.zone,r.motif,r.arr])
+  );
+
+  document.getElementById('tblLMN').innerHTML = buildTable(
+    ['Date','Nom','Prénom','Village','Class.','Statut'],
+    allData.lmn.slice(-10).map(r=>[r.date,r.nom,r.pre,r.vil,r.cls,r.stat])
+  );
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Suivi MC PROSSAHEL v10</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b6e4f">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Suivi MC">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<style>
+:root{--p:#0b6e4f;--p2:#14a37f;--bg:#f5f7f6;--card:#fff;--bd:#d9e2de;--txt:#1c2b26;--al:#e63946;--ok:#2a9d8f;--wr:#f4a261;--wa:#25D366;--rouge:#e63946;--jaune:#f4a261;--vert:#2a9d8f}
+*{box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif}
+body{margin:0;background:var(--bg);color:var(--txt);font-size:15px}
+header{background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;padding:14px;position:sticky;top:0;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+header h1{margin:0;font-size:16px}
+header small{opacity:.9;font-size:12px}
+#filterBar{background:#fff;border-bottom:2px solid var(--p2);padding:10px;position:sticky;top:58px;z-index:9;display:flex;flex-wrap:wrap;gap:8px;align-items:center;box-shadow:0 2px 4px rgba(0,0,0,.05)}
+#filterBar label{font-size:11px;font-weight:600;color:var(--p);margin-right:2px}
+#filterBar select,#filterBar input{padding:5px 8px;border:1px solid var(--bd);border-radius:6px;font-size:12px;min-width:110px}
+#filterBar .filter-group{display:flex;align-items:center;gap:4px;background:#f8fbfa;padding:4px 8px;border-radius:20px;border:1px solid var(--bd)}
+#filterBar .btn-clear{background:var(--al);color:#fff;border:none;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600}
+#filterBar .filter-info{background:#e8f2ee;color:var(--p);padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-left:auto}
+nav{display:flex;gap:6px;overflow-x:auto;padding:8px;background:#fff;border-bottom:1px solid var(--bd);position:sticky;top:118px;z-index:8}
+nav button{white-space:nowrap;padding:8px 12px;border:1px solid var(--bd);background:#fff;border-radius:20px;font-size:12px;cursor:pointer}
+nav button.active{background:var(--p);color:#fff;border-color:var(--p)}
+main{padding:12px;max-width:1400px;margin:auto;padding-bottom:80px}
+section{display:none;background:var(--card);border-radius:12px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:14px}
+section.active{display:block}
+h2{color:var(--p);font-size:17px;margin:0 0 10px;border-bottom:2px solid var(--p2);padding-bottom:6px}
+h3{font-size:15px;color:var(--p);margin:16px 0 8px}
+h4{font-size:13px;color:var(--p);margin:12px 0 6px;background:#e8f2ee;padding:6px 10px;border-radius:6px}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:10px}
+th,td{border:1px solid var(--bd);padding:5px;text-align:left}
+th{background:#e8f2ee;font-weight:600;font-size:11.5px}
+input,select,textarea{width:100%;padding:6px;border:1px solid var(--bd);border-radius:6px;font-size:13px;font-family:inherit}
+button.btn{background:var(--p);color:#fff;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;margin:4px 4px 4px 0}
+button.btn.alt{background:#6c757d}
+button.btn.danger{background:var(--al)}
+button.btn.ok{background:var(--ok)}
+button.btn.wa{background:var(--wa)}
+button.btn.mail{background:#ea4335}
+button.btn.drive{background:#4285F4}
+button.btn.gps{background:#e67e22}
+.card{background:#f8fbfa;border:1px solid var(--bd);border-radius:8px;padding:12px;margin:8px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+.stat{background:#fff;border:1px solid var(--bd);border-radius:8px;padding:10px;text-align:center}
+.stat .v{font-size:20px;font-weight:700;color:var(--p)}
+.stat .l{font-size:11px;color:#666;line-height:1.3}
+.stat.alert{border-color:var(--al);background:#fff5f5}
+.stat.warn{border-color:var(--wr);background:#fffaf3}
+.stat.ok{border-color:var(--ok);background:#f3fbf9}
+canvas{max-height:300px;margin:10px 0}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.b-ok{background:#d1f0e8;color:#146c5c}.b-al{background:#fbdada;color:#a11}.b-wr{background:#ffe8cc;color:#a15c00}
+.b-rouge{background:#fbdada;color:#a11}.b-jaune{background:#ffe8cc;color:#a15c00}.b-vert{background:#d1f0e8;color:#146c5c}
+.b-new{background:#c7d2fe;color:#3730a3}.b-anc{background:#e5e7eb;color:#374151}
+.b-stat{background:#fef3c7;color:#92400e}
+.b-autre{background:#e9d5ff;color:#6b21a8}
+.b-semaine{background:#dbeafe;color:#1e40af}
+.small{font-size:12px;color:#666}
+.counter{background:#e8f2ee;padding:8px 12px;border-radius:8px;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--p);display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.counter span{background:#fff;padding:2px 8px;border-radius:12px;font-size:12px}
+.actions{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--bd);padding:8px;display:flex;gap:6px;justify-content:center;z-index:20;flex-wrap:wrap}
+.actions button{flex:1;max-width:180px;min-width:100px}
+.share-box{background:#e8f2ee;border:2px dashed var(--p2);border-radius:8px;padding:12px;margin:10px 0}
+#flash{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#0b6e4f;color:#fff;padding:12px 20px;border-radius:8px;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,.2);font-size:14px;font-weight:600;opacity:0;transition:opacity .3s;max-width:90%;text-align:center}
+#flash.show{opacity:1}
+.subtabs{display:flex;gap:4px;overflow-x:auto;margin:10px 0;padding-bottom:6px;border-bottom:1px solid var(--bd)}
+.subtabs button{padding:6px 12px;border:1px solid var(--bd);background:#fff;border-radius:16px;font-size:12px;cursor:pointer;white-space:nowrap}
+.subtabs button.active{background:var(--p);color:#fff;border-color:var(--p)}
+.subpanel{display:none}
+.subpanel.active{display:block}
+div[data-role="village-autre-wrap"]{background:#e8f2ee;padding:8px;border-radius:6px;margin-top:6px;border-left:4px solid var(--p2)}
+div[data-role="village-autre-wrap"] input{background:#fff;margin-top:4px;border:2px solid var(--p2)}
+@media print{nav,header,.actions,.no-print,.counter,.subtabs,#filterBar{display:none!important}section{display:block!important;box-shadow:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏥 Suivi Mobilisation Communautaire — PROSSAHEL v10</h1>
+  <small>Bureau : Bassikounou • <span id="today"></span> • <span id="userInfo">Non connecté à Drive</span> • <span id="fbStatus">⚪ Firebase</span></small>
+</header>
+
+<div id="filterBar">
+  <div class="filter-group"><label>📅 Période</label>
+    <select id="fPeriod" onchange="applyGlobalFilters()">
+      <option value="all">Tout</option><option value="week">Cette semaine</option>
+      <option value="month" selected>Ce mois</option><option value="year">Cette année</option>
+      <option value="custom">Personnalisé</option>
+    </select>
+  </div>
+  <div class="filter-group"><label>📆 Année</label><select id="fYear" onchange="applyGlobalFilters()"><option value="">Toutes</option></select></div>
+  <div class="filter-group"><label>🗓️ Semaine</label><select id="fWeek" onchange="applyGlobalFilters()"><option value="">Toutes</option></select></div>
+  <div class="filter-group"><label>📍 Village</label><select id="fVillage" onchange="applyGlobalFilters()"><option value="">Tous</option></select></div>
+  <div class="filter-group" id="customDates" style="display:none">
+    <label>Du</label><input type="date" id="fDateFrom" onchange="applyGlobalFilters()">
+    <label>Au</label><input type="date" id="fDateTo" onchange="applyGlobalFilters()">
+  </div>
+  <button class="btn-clear" onclick="resetFilters()">✕ Réinitialiser</button>
+  <div class="filter-info" id="filterInfo">Filtres actifs : Ce mois</div>
+</div>
+
+<nav id="nav"></nav>
+<main><section id="m1">
+<h2>1️⃣ Sensibilisations</h2>
+<div class="counter" id="cnt1">📊 0</div>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="s_date"></div>
+<div><label class="small">Zone</label><input id="s_zone" value="Bassikounou"></div>
+<div><label class="small">Village</label><select id="s_vil"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Thème</label><input id="s_th"></div>
+<div><label class="small">Langue</label><input id="s_lang"></div>
+<div><label class="small">H</label><input type="number" id="s_h" value="0"></div>
+<div><label class="small">F</label><input type="number" id="s_f" value="0"></div>
+<div><label class="small">J</label><input type="number" id="s_j" value="0"></div>
+<div><label class="small">RECO</label><input type="number" id="s_reco" value="0"></div>
+<div><label class="small">Support</label><input id="s_sup"></div>
+<div><label class="small">Questions</label><input id="s_q"></div>
+<div><label class="small">Référés clinique</label><input type="number" id="s_ref" value="0"></div>
+<div><label class="small">Superviseur</label><input id="s_sp" value="Boubacar Sadeck Ould Moustapha"></div>
+</div><button class="btn" onclick="addSens()">➕ Ajouter</button></div>
+<div id="lst1"></div>
+</section>
+
+<section id="m2">
+<h2>2️⃣ RECO</h2>
+<div class="counter" id="cnt2">📊 0</div>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="r_date"></div>
+<div><label class="small">Zone</label><input id="r_zone" value="Bassikounou"></div>
+<div><label class="small">Nom</label><input id="r_nom"></div>
+<div><label class="small">Sexe</label><select id="r_sex"><option>M</option><option>F</option></select></div>
+<div><label class="small">Village</label><select id="r_vil"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Visites</label><input type="number" id="r_vd" value="0"></div>
+<div><label class="small">MUAC</label><input type="number" id="r_muac" value="0"></div>
+<div><label class="small">MAG</label><input type="number" id="r_mag" value="0"></div>
+<div><label class="small">Réf.Clin</label><input type="number" id="r_rc" value="0"></div>
+<div><label class="small">Réf.Arr</label><input type="number" id="r_ra" value="0"></div>
+<div><label class="small">CPN</label><input type="number" id="r_cpn" value="0"></div>
+<div><label class="small">Séance</label><select id="r_sa"><option>Oui</option><option>Non</option></select></div>
+<div><label class="small">Registre</label><select id="r_reg"><option>Oui</option><option>Non</option></select></div>
+<div><label class="small">Score</label><input type="number" id="r_sc" value="0" step="0.5"></div>
+<div><label class="small">Observations</label><input id="r_obs"></div>
+</div><button class="btn" onclick="addReco()">➕ Ajouter</button></div>
+<div id="lst2"></div>
+</section>
+
+<section id="m3">
+<h2>3️⃣ Références</h2>
+<div class="counter" id="cnt3">📊 0</div>
+<div class="card"><div class="grid">
+<div><label class="small">N°</label><input id="f_num"></div>
+<div><label class="small">N° RCCNPSS</label><input id="f_rccnpss"></div>
+<div><label class="small">Date</label><input type="date" id="f_date"></div>
+<div><label class="small">Référé par</label><input id="f_par"></div>
+<div><label class="small">Village</label><select id="f_zone"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Statut</label><select id="f_statut"><option>Autochtones</option><option>Réfugiés</option><option>Retournés</option><option>Déplacés</option><option>Transhumants</option><option>Transfrontaliers</option></select></div>
+<div><label class="small">Motif</label><input id="f_motif"></div>
+<div><label class="small">Sexe</label><select id="f_sex"><option>M</option><option>F</option></select></div>
+<div><label class="small">Âge</label><input id="f_age"></div>
+<div><label class="small">Arrivé</label><select id="f_arr"><option>Oui</option><option>Non</option></select></div>
+<div><label class="small">Date arrivée</label><input type="date" id="f_dar"></div>
+<div><label class="small">Diagnostic</label><input id="f_diag"></div>
+<div><label class="small">Traitement</label><input id="f_tr"></div>
+<div><label class="small">Feedback</label><select id="f_fb"><option>Oui</option><option>Non</option></select></div>
+<div><label class="small">Observations</label><input id="f_obs"></div>
+</div><button class="btn" onclick="addRef()">➕ Ajouter</button></div>
+<div id="lst3"></div>
+</section>
+
+<section id="m9">
+<h2>9️⃣ VAD</h2>
+<div class="counter" id="cnt9">📊 0</div>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="vd_date"></div>
+<div><label class="small">Zone</label><input id="vd_zone" value="Bassikounou"></div>
+<div><label class="small">Village</label><select id="vd_vil"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Statut</label><select id="vd_statut"><option>Autochtones</option><option>Réfugiés</option><option>Retournés</option><option>Déplacés</option><option>Transhumants</option><option>Transfrontaliers</option></select></div>
+<div><label class="small">Agent</label><input id="vd_agent"></div>
+<div><label class="small">Ménages</label><input type="number" id="vd_men" value="0"></div>
+<div><label class="small">Diabétiques</label><input type="number" id="vd_diab" value="0"></div>
+<div><label class="small">HTA</label><input type="number" id="vd_hta" value="0"></div>
+<div><label class="small">TB</label><input type="number" id="vd_tb" value="0"></div>
+<div><label class="small">Autres</label><input type="number" id="vd_autre" value="0"></div>
+<div><label class="small">Préciser</label><input id="vd_autre_txt"></div>
+</div><button class="btn" onclick="addVAD()">➕ Ajouter</button></div>
+<div id="lst9"></div>
+</section>
+
+<section id="m10">
+<h2>🔟 Santé Maternelle</h2>
+<div class="counter" id="cnt10">📊 0</div>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="sm_date"></div>
+<div><label class="small">Village</label><select id="sm_vil"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Statut</label><select id="sm_statut"><option>Autochtones</option><option>Réfugiés</option><option>Retournés</option><option>Déplacés</option><option>Transhumants</option><option>Transfrontaliers</option></select></div>
+<div><label class="small">Agent</label><input id="sm_agent"></div>
+<div><label class="small">CPN nouveaux</label><input type="number" id="sm_cpn_new" value="0"></div>
+<div><label class="small">CPN anciens</label><input type="number" id="sm_cpn_old" value="0"></div>
+<div><label class="small">CPON</label><input type="number" id="sm_cpon" value="0"></div>
+<div><label class="small">Acc. domicile</label><input type="number" id="sm_acc" value="0"></div>
+<div><label class="small">Réf.</label><input type="number" id="sm_acc_ref" value="0"></div>
+<div><label class="small">Observations</label><input id="sm_obs"></div>
+</div><button class="btn" onclick="addSM()">➕ Ajouter</button></div>
+<div id="lst10"></div>
+</section>
+
+<section id="m11">
+<h2>1️⃣1️⃣ Malnutrition</h2>
+<div class="counter" id="cnt11">📊 0</div>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="mn_date"></div>
+<div><label class="small">Village</label><select id="mn_vil"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Statut</label><select id="mn_statut"><option>Autochtones</option><option>Réfugiés</option><option>Retournés</option><option>Déplacés</option><option>Transhumants</option><option>Transfrontaliers</option></select></div>
+<div><label class="small">Agent</label><input id="mn_agent"></div>
+<div><label class="small">Total</label><input type="number" id="mn_total" value="0"></div>
+<div><label class="small">Garçons</label><input type="number" id="mn_gar" value="0"></div>
+<div><label class="small">Filles</label><input type="number" id="mn_fil" value="0"></div>
+<div><label class="small">🟢 Vert</label><input type="number" id="mn_vert" value="0"></div>
+<div><label class="small">🟡 Jaune</label><input type="number" id="mn_jaune" value="0"></div>
+<div><label class="small">🔴 Rouge</label><input type="number" id="mn_rouge" value="0"></div>
+<div><label class="small">Nouv. R</label><input type="number" id="mn_new_rouge" value="0"></div>
+<div><label class="small">Anc. R</label><input type="number" id="mn_old_rouge" value="0"></div>
+<div><label class="small">Nouv. J</label><input type="number" id="mn_new_jaune" value="0"></div>
+<div><label class="small">Anc. J</label><input type="number" id="mn_old_jaune" value="0"></div>
+<div><label class="small">Réf.</label><input type="number" id="mn_ref" value="0"></div>
+<div><label class="small">Observations</label><input id="mn_obs"></div>
+</div><button class="btn" onclick="addMN()">➕ Ajouter</button></div>
+<div id="lst11"></div>
+</section>
+
+<section id="m12">
+<h2>1️⃣2️⃣ Vaccination</h2>
+<div class="counter" id="cnt12">📊 0</div>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="va_date"></div>
+<div><label class="small">Village</label><select id="va_vil"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Statut</label><select id="va_statut"><option>Autochtones</option><option>Réfugiés</option><option>Retournés</option><option>Déplacés</option><option>Transhumants</option><option>Transfrontaliers</option></select></div>
+<div><label class="small">Agent</label><input id="va_agent"></div>
+<div><label class="small">Visités</label><input type="number" id="va_vis" value="0"></div>
+<div><label class="small">Référés</label><input type="number" id="va_ref" value="0"></div>
+<div><label class="small">À jour</label><input type="number" id="va_ok" value="0"></div>
+<div><label class="small">En retard</label><input type="number" id="va_retard" value="0"></div>
+<div><label class="small">Observations</label><input id="va_obs"></div>
+</div><button class="btn" onclick="addVA()">➕ Ajouter</button></div>
+<div id="lst12"></div>
+</section>
+
+<section id="m8">
+<h2>8️⃣ Marché</h2>
+<div class="counter" id="cnt8">📊 0</div>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="k_date"></div>
+<div><label class="small">Zone</label><input id="k_zone" value="Bassikounou"></div>
+<div><label class="small">Village</label><select id="k_vil"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Mil 100kg</label><input type="number" id="k_mil" step="0.01"></div>
+<div><label class="small">Riz 50kg</label><input type="number" id="k_riz" step="0.01"></div>
+<div><label class="small">Huile 5L</label><input type="number" id="k_huile" step="0.01"></div>
+<div><label class="small">Thé/kg</label><input type="number" id="k_the" step="0.01"></div>
+<div><label class="small">Mouton</label><input type="number" id="k_mout" step="0.01"></div>
+<div><label class="small">Chèvre</label><input type="number" id="k_chev" step="0.01"></div>
+<div><label class="small">Cabri</label><input type="number" id="k_cab" step="0.01"></div>
+<div><label class="small">Vache</label><input type="number" id="k_vach" step="0.01"></div>
+<div><label class="small">Chameau</label><input type="number" id="k_cham" step="0.01"></div>
+<div><label class="small">Tendance</label><select id="k_tend"><option>Stable</option><option>Moyen</option><option>Bas</option></select></div>
+<div><label class="small">Observations</label><input id="k_obs"></div>
+</div><button class="btn" onclick="addMarche()">➕ Ajouter</button></div>
+<div id="lst8"></div>
+<canvas id="chMarche"></canvas>
+</section>
+
+<section id="m6">
+<h2>6️⃣ Répertoire RECO</h2>
+<div class="counter" id="cnt6">📊 0</div>
+<div class="card"><div class="grid">
+<div><label class="small">Nom</label><input id="p_nom"></div>
+<div><label class="small">Sexe</label><select id="p_sex"><option>M</option><option>F</option></select></div>
+<div><label class="small">Village</label><select id="p_vil"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Contact</label><input id="p_tel"></div>
+<div><label class="small">Statut</label><select id="p_stat"><option>Actif</option><option>Inactif</option></select></div>
+</div><button class="btn" onclick="addRep()">➕ Ajouter</button></div>
+<div id="lst6"></div>
+</section>
+
+<section id="mLead">
+<h2>👥 Leaders</h2>
+<div class="counter" id="cntLead">📊 0</div>
+<div class="card"><div class="grid">
+<div><label class="small">Nom</label><input id="lead_nom"></div>
+<div><label class="small">Sexe</label><select id="lead_sex"><option>M</option><option>F</option></select></div>
+<div><label class="small">Village</label><select id="lead_vil"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Fonction</label><input id="lead_fonction"></div>
+<div><label class="small">Contact</label><input id="lead_tel"></div>
+</div><button class="btn" onclick="addLeader()">➕ Ajouter</button></div>
+<div id="lstLead"></div>
+</section>
+
+<section id="mVil">
+<h2>🗺️ Villages GPS</h2>
+<div class="counter" id="cntVil">📊 0</div>
+<div class="card"><div class="grid">
+<div><label class="small">Nom</label><input id="vil_nom"></div>
+<div><label class="small">Zone</label><input id="vil_zone" value="Bassikounou"></div>
+<div><label class="small">Type</label><select id="vil_type"><option>Village</option><option>Campement</option><option>Site transhumance</option></select></div>
+<div><label class="small">Latitude</label><input id="vil_lat" placeholder="—"></div>
+<div><label class="small">Longitude</label><input id="vil_lon" placeholder="—"></div>
+<div><label class="small">Ménages</label><input type="number" id="vil_men" value="0"></div>
+<div><label class="small">Population</label><input type="number" id="vil_pop" value="0"></div>
+<div><label class="small">Chef</label><input id="vil_chef"></div>
+<div><label class="small">Contact</label><input id="vil_tel"></div>
+<div><label class="small">Observations</label><input id="vil_obs"></div>
+</div>
+<button class="btn gps" onclick="capturerGPS()">📍 Capturer ma position GPS</button>
+<button class="btn" onclick="addVillage()">➕ Ajouter</button>
+<button class="btn alt" onclick="initVillages()">🔄 Charger 6 villages</button>
+<div class="small" id="gpsStatus" style="margin-top:6px"></div>
+</div>
+<div id="lstVil"></div>
+</section>
+
+<section id="m13">
+<h2>📋 Listes de Suivi</h2>
+<div class="subtabs" id="subtabs"></div>
+
+<div class="subpanel" id="sub_mn"><h3>🧒 Malnutrition</h3>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="lmn_date"></div>
+<div><label class="small">N° RCCNPSS</label><input id="lmn_rccnpss"></div>
+<div><label class="small">Nom</label><input id="lmn_nom"></div>
+<div><label class="small">Prénom</label><input id="lmn_pre"></div>
+<div><label class="small">Âge</label><input id="lmn_age"></div>
+<div><label class="small">Sexe</label><select id="lmn_sex"><option>M</option><option>F</option></select></div>
+<div><label class="small">Village</label><select id="lmn_vil"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Statut</label><select id="lmn_statut"><option>Autochtones</option><option>Réfugiés</option><option>Retournés</option><option>Déplacés</option><option>Transhumants</option><option>Transfrontaliers</option></select></div>
+<div><label class="small">Classification</label><select id="lmn_cls"><option>Rouge (MAS)</option><option>Jaune (MAM)</option><option>Vert</option></select></div>
+<div><label class="small">Type</label><select id="lmn_cas_type"><option>Nouveau cas</option><option>Ancien cas</option></select></div>
+<div><label class="small">MUAC anc.</label><input type="number" id="lmn_muac_anc" step="0.1"></div>
+<div><label class="small">MUAC act.</label><input type="number" id="lmn_muac" step="0.1"></div>
+<div><label class="small">RDV</label><input type="date" id="lmn_rdv"></div>
+<div><label class="small">Statut suivi</label><select id="lmn_stat"><option>En cours</option><option>Guéri</option><option>Référé</option><option>Abandon</option></select></div>
+<div><label class="small">Observations</label><input id="lmn_obs"></div>
+</div><button class="btn" onclick="addLMN()">➕ Ajouter</button></div>
+<div id="lstLMN"></div></div>
+
+<div class="subpanel" id="sub_diab"><h3>🩸 Diabétiques</h3>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="ld_date"></div>
+<div><label class="small">N° RCCNPSS</label><input id="ld_rccnpss"></div>
+<div><label class="small">Nom</label><input id="ld_nom"></div>
+<div><label class="small">Prénom</label><input id="ld_pre"></div>
+<div><label class="small">Village</label><select id="ld_vil"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Type</label><select id="ld_type"><option>Type 1</option><option>Type 2</option></select></div>
+<div><label class="small">Statut</label><select id="ld_stat"><option>Suivi régulier</option><option>Perdu de vue</option><option>Référé</option></select></div>
+</div><button class="btn" onclick="addLD()">➕ Ajouter</button></div>
+<div id="lstLD"></div></div>
+
+<div class="subpanel" id="sub_hta"><h3>💓 HTA</h3>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="lh_date"></div>
+<div><label class="small">Nom</label><input id="lh_nom"></div>
+<div><label class="small">Prénom</label><input id="lh_pre"></div>
+<div><label class="small">Village</label><select id="lh_vil"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">TA</label><input id="lh_ta"></div>
+<div><label class="small">Statut</label><select id="lh_stat"><option>Suivi régulier</option><option>Perdu de vue</option></select></div>
+</div><button class="btn" onclick="addLH()">➕ Ajouter</button></div>
+<div id="lstLH"></div></div>
+
+<div class="subpanel" id="sub_sm"><h3>🧠 Santé mentale</h3>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="lsm_date"></div>
+<div><label class="small">Nom</label><input id="lsm_nom"></div>
+<div><label class="small">Prénom</label><input id="lsm_pre"></div>
+<div><label class="small">Village</label><select id="lsm_vil"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Diagnostic</label><input id="lsm_diag"></div>
+</div><button class="btn" onclick="addLSM()">➕ Ajouter</button></div>
+<div id="lstLSM"></div></div>
+
+<div class="subpanel" id="sub_cpn"><h3>🤰 CPN/CPON</h3>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="lc_date"></div>
+<div><label class="small">Nom</label><input id="lc_nom"></div>
+<div><label class="small">Prénom</label><input id="lc_pre"></div>
+<div><label class="small">Village</label><select id="lc_vil"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Type</label><select id="lc_type"><option>CPN 1</option><option>CPN 2</option><option>CPN 3</option><option>CPN 4</option><option>CPON</option></select></div>
+<div><label class="small">Statut</label><select id="lc_stat"><option>En cours</option><option>Accouchée</option></select></div>
+</div><button class="btn" onclick="addLC()">➕ Ajouter</button></div>
+<div id="lstLC"></div></div>
+
+<div class="subpanel" id="sub_vac"><h3>💉 Vaccination</h3>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="lv_date"></div>
+<div><label class="small">Nom</label><input id="lv_nom"></div>
+<div><label class="small">Prénom</label><input id="lv_pre"></div>
+<div><label class="small">Village</label><select id="lv_vil"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Vaccins</label><input id="lv_vac"></div>
+<div><label class="small">Statut</label><select id="lv_stat"><option>À jour</option><option>En retard</option></select></div>
+</div><button class="btn" onclick="addLV()">➕ Ajouter</button></div>
+<div id="lstLV"></div></div>
+
+<div class="subpanel" id="sub_mvp"><h3>🚶 Mouvements</h3>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="lmp_date"></div>
+<div><label class="small">Nom</label><input id="lmp_nom"></div>
+<div><label class="small">Type</label><select id="lmp_type_mvt"><option>Arrivée</option><option>Passage</option><option>Départ</option><option>Installation saisonnière</option></select></div>
+<div><label class="small">Statut</label><select id="lmp_statut"><option>Autochtones</option><option>Réfugiés</option><option>Retournés</option><option>Déplacés</option><option>Transhumants</option><option>Transfrontaliers</option></select></div>
+<div><label class="small">Motif</label><select id="lmp_motif"><option>Insécurité</option><option>Pâturage</option><option>Eau</option><option>Transhumance</option><option>Marché</option><option>Accès aux soins</option><option>Retour volontaire</option><option>Autre</option></select></div>
+</div><button class="btn" onclick="addLMP()">➕ Ajouter</button></div>
+<div id="lstLMP"></div></div>
+</section>
+
+<section id="m7a">
+<h2>7️⃣A Alertes</h2>
+<div class="counter" id="cnt7a">📊 0</div>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="a_date"></div>
+<div><label class="small">Village</label><select id="a_zone"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Type</label><input id="a_type"></div>
+<div><label class="small">Cas</label><input type="number" id="a_cas" value="1"></div>
+<div><label class="small">Transmis</label><select id="a_tr"><option>Oui</option><option>Non</option></select></div>
+</div><button class="btn" onclick="addAlerte()">➕ Ajouter</button></div>
+<div id="lst7a"></div>
+</section>
+
+<section id="m7b">
+<h2>7️⃣B Mouvements Population</h2>
+<div class="counter" id="cnt7b">📊 0</div>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="mv_date"></div>
+<div><label class="small">Type</label><select id="mv_type_mvt"><option>Arrivée</option><option>Passage</option><option>Départ</option><option>Installation saisonnière</option></select></div>
+<div><label class="small">Statut</label><select id="mv_statut"><option>Autochtones</option><option>Réfugiés</option><option>Retournés</option><option>Déplacés</option><option>Transhumants</option><option>Transfrontaliers</option></select></div>
+<div><label class="small">Origine</label><input id="mv_ori"></div>
+<div><label class="small">Destination</label><input id="mv_des"></div>
+<div><label class="small">Nb</label><input type="number" id="mv_n" value="0"></div>
+<div><label class="small">Motif</label><select id="mv_motif"><option>Insécurité</option><option>Pâturage</option><option>Eau</option><option>Transhumance</option><option>Marché</option><option>Accès aux soins</option><option>Retour volontaire</option><option>Autre</option></select></div>
+</div><button class="btn" onclick="addMvt()">➕ Ajouter</button></div>
+<div id="lst7b"></div>
+</section>
+
+<section id="mE">
+<h2>🛡️ Protection</h2>
+<div class="counter" id="cntE">📊 0</div>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="e_date"></div>
+<div><label class="small">Village</label><select id="e_zone"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Type</label><select id="e_type"><option>VBG</option><option>PEAS</option><option>ENA/ES</option><option>Vulnérable</option></select></div>
+<div><label class="small">Sexe</label><select id="e_sex"><option>M</option><option>F</option></select></div>
+<div><label class="small">Orientation</label><input id="e_orient"></div>
+</div><button class="btn" onclick="addProt()">➕ Ajouter</button></div>
+<div id="lstE"></div>
+</section>
+
+<section id="mF">
+<h2>🐄 One Health</h2>
+<div class="counter" id="cntF">📊 0</div>
+<div class="card"><div class="grid">
+<div><label class="small">Date</label><input type="date" id="f_date2"></div>
+<div><label class="small">Village</label><select id="f_vil2"><option value="">--</option><option>Abbague</option><option>Bir Albarka</option><option>Lihweyra</option><option>Boumediane</option><option>Disha</option><option>Hassi Twil</option></select></div>
+<div><label class="small">Thème</label><input id="f_th2"></div>
+<div><label class="small">Ménages</label><input type="number" id="f_n2" value="0"></div>
+</div><button class="btn" onclick="addOHMenage()">➕ Ajouter</button></div>
+<div id="lstF"></div>
+</section><section id="m5">
+<h2>5️⃣ Rapport Hebdo</h2>
+<div class="card"><div class="grid">
+<div><label class="small">Semaine</label><input type="number" id="h_sem" value="38"></div>
+<div><label class="small">Du</label><input type="date" id="h_du"></div>
+<div><label class="small">Au</label><input type="date" id="h_au"></div>
+<div><label class="small">Zone</label><input id="h_zone" value="Abbague, Bir Albarka, Lihweyra, Boumediane, Disha, Hassi Twil"></div>
+<div><label class="small">Superviseur</label><input id="h_sup" value="Boubacar Sadeck Ould Moustapha"></div>
+<div><label class="small">Soumis</label><input type="date" id="h_sub"></div>
+</div>
+<div class="share-box">
+<b>🔄 Calcul automatique :</b>
+<button class="btn ok" onclick="calculerHebdo()">🔄 Calculer automatiquement</button>
+<div class="small" id="hebdoStatus"></div>
+</div>
+<h3>Activités</h3>
+<div class="grid">
+<div><label class="small">Séances</label><input type="number" id="h1" value="0"></div>
+<div><label class="small">Participants</label><input type="number" id="h2" value="0"></div>
+<div><label class="small">Villages</label><input type="number" id="h3" value="0"></div>
+<div><label class="small">ASC supervisés</label><input id="h4"></div>
+<div><label class="small">Visites domicile</label><input type="number" id="h5" value="0"></div>
+<div><label class="small">MUAC</label><input type="number" id="h6" value="0"></div>
+<div><label class="small">&lt;11.5</label><input type="number" id="h7" value="0"></div>
+<div><label class="small">Référés sensib.</label><input type="number" id="h_refSens" value="0"></div>
+<div><label class="small">Référés communautaires</label><input type="number" id="h8" value="0"></div>
+<div><label class="small">Réf. arrivés</label><input type="number" id="h9" value="0"></div>
+<div><label class="small">Réunions</label><input type="number" id="h10" value="0"></div>
+</div>
+<h3>Observations</h3>
+<div class="grid">
+<div><label class="small">Difficultés</label><textarea id="ho1" rows="2"></textarea></div>
+<div><label class="small">Thèmes</label><textarea id="ho2" rows="2"></textarea></div>
+<div><label class="small">Rumeurs</label><textarea id="ho3" rows="2"></textarea></div>
+<div><label class="small">Alertes</label><textarea id="ho4" rows="2"></textarea></div>
+<div><label class="small">Mouvements</label><textarea id="ho5" rows="2"></textarea></div>
+</div>
+<div class="share-box">
+<label class="small">WhatsApp</label>
+<input id="wa_to" placeholder="222XXXXXXXX" style="margin:4px 0">
+<label class="small">Email</label>
+<input id="mail_to" type="email" style="margin:4px 0">
+<button class="btn" onclick="saveHebdo()">💾 Enregistrer</button>
+<button class="btn ok" onclick="printHebdo()">📄 PDF</button>
+<button class="btn wa" onclick="sendWhatsAppHebdo()">📱 WhatsApp</button>
+<button class="btn mail" onclick="sendMailHebdo()">✉️ Email</button>
+</div>
+</div>
+</section>
+
+<section id="m4">
+<h2>4️⃣ Tableau de Bord</h2>
+<div id="tdb"></div>
+<canvas id="ch1"></canvas>
+<canvas id="ch2"></canvas>
+<canvas id="ch3"></canvas>
+<canvas id="ch4"></canvas>
+</section>
+
+<section id="mMen">
+<h2>📅 Rapport Mensuel</h2>
+<div class="share-box">
+<button class="btn ok" onclick="printMensuel()">📄 PDF</button>
+<button class="btn ok" onclick="exportExcel()">📊 Excel</button>
+</div>
+<div id="mensuel"></div>
+</section>
+
+<section id="mSave">
+<h2>💾 Sauvegarde</h2>
+<div class="card" style="border:2px solid #2a9d8f">
+<h3>📊 Excel</h3>
+<button class="btn ok" onclick="exportExcel()">📊 Exporter</button>
+</div>
+<div class="card" style="border:2px solid #4285F4">
+<h3>☁️ Google Drive</h3>
+<div id="gdrive_status" style="padding:8px;background:#f0f4ff;border-radius:6px;margin:8px 0">⚪ Non connecté</div>
+<button class="btn drive" onclick="googleSignIn()">🔐 Se connecter</button>
+<button class="btn drive" onclick="driveSaveAll()">☁️ Sauvegarder</button>
+<button class="btn danger" onclick="googleSignOut()">🚪 Déconnexion</button>
+<div id="driveMsg" class="small"></div>
+</div>
+<div class="card" style="border:2px solid #e67e22">
+<h3>🔥 Firebase (Superviseur)</h3>
+<div id="firebaseStatus" style="padding:8px;background:#fff5e6;border-radius:6px;margin:8px 0">⚪ Vérification...</div>
+<button class="btn" onclick="syncToFirebase()">🔄 Synchroniser maintenant</button>
+<button class="btn alt" onclick="window.open('superviseur.html','_blank')">👁️ Voir le tableau superviseur</button>
+</div>
+<div class="card">
+<h3>💾 Local</h3>
+<button class="btn" onclick="exportJSON()">⬇️ Export JSON</button>
+<button class="btn alt" onclick="document.getElementById('impFile').click()">⬆️ Import JSON</button>
+<input type="file" id="impFile" accept=".json" style="display:none" onchange="importJSON(event)">
+<button class="btn danger" onclick="clearAll()">🗑️ Effacer</button>
+</div>
+</section>
+
+</main>
+
+<div class="actions no-print">
+<button class="btn" onclick="window.print()">🖨️</button>
+<button class="btn ok" onclick="exportExcel()">📊</button>
+<button class="btn ok" onclick="exportJSON()">💾</button>
+<button class="btn drive" onclick="driveSaveAll()">☁️</button>
+<button class="btn wa" onclick="quickWhatsApp()">📱</button>
+</div>
+
+<div id="flash"></div>
+
+<script>
+/* ==================== CONFIG ==================== */
+const CLIENT_ID='640291051524-oq8oqqf2ifsapisib74j569qrmduuchg.apps.googleusercontent.com';
+const SCOPES='https://www.googleapis.com/auth/drive.file';
+const FOLDER_NAME='PROSSAHEL_MC';
+const VILLAGES_BASE=['Abbague','Bir Albarka','Lihweyra','Boumediane','Disha','Hassi Twil'];
+const OPTION_AUTRE='__AUTRE__';
+
+/* ==================== FIREBASE ==================== */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBofWV-1_PPtS7m-jNg_1wZnymlaFvdLrE",
+  authDomain: "prossahel-mc-9ea63.firebaseapp.com",
+  projectId: "prossahel-mc-9ea63",
+  storageBucket: "prossahel-mc-9ea63.firebasestorage.app",
+  messagingSenderId: "244040456263",
+  appId: "1:244040456263:web:281ea4f709af66cf3f7962"
+};
+let firebaseDB=null,firebaseReady=false;
+try{
+  firebase.initializeApp(FIREBASE_CONFIG);
+  firebaseDB=firebase.firestore();
+  firebaseReady=true;
+  document.addEventListener('DOMContentLoaded',()=>{const e=document.getElementById('fbStatus');if(e)e.textContent='🟢 Firebase';});
+}catch(e){console.warn('Firebase:',e.message);}
+
+let DEVICE_ID=localStorage.getItem('deviceId');
+if(!DEVICE_ID){DEVICE_ID='boubacar_'+Math.random().toString(36).substring(2,10);localStorage.setItem('deviceId',DEVICE_ID);}
+
+async function syncToFirebase(){
+  if(!firebaseReady||!firebaseDB){const e=document.getElementById('firebaseStatus');if(e)e.textContent='❌ Firebase non disponible';return;}
+  try{
+    await firebaseDB.collection('prossahel').doc(DEVICE_ID).set({
+      deviceId:DEVICE_ID,user:'Boubacar',
+      lastUpdate:firebase.firestore.FieldValue.serverTimestamp(),
+      data:DB
+    });
+    const e=document.getElementById('firebaseStatus');
+    if(e)e.innerHTML='🟢 Synchronisé à '+new Date().toLocaleTimeString('fr-FR');
+  }catch(err){
+    const e=document.getElementById('firebaseStatus');
+    if(e)e.textContent='❌ '+err.message;
+  }
+}
+
+/* ==================== STORAGE ==================== */
+const DB={sens:[],reco:[],refs:[],alertes:[],mvts:[],marche:[],rep:[],vad:[],sm:[],mn:[],va:[],
+  lmn:[],ld:[],lh:[],lsm:[],lc:[],lv:[],lmp:[],
+  prot:[],protSens:[],protRef:[],
+  ohMen:[],ohSens:[],ohAlert:[],ohPoint:[],ohCamp:[],ohRefVet:[],ohLead:[],
+  leaders:[],villages:[],hebdo:{}};
+const KEY='prossahel_mc_v10';
+function load(){const s=localStorage.getItem(KEY);if(s)Object.assign(DB,JSON.parse(s));}
+function save(){localStorage.setItem(KEY,JSON.stringify(DB));syncToFirebase();}
+load();
+if(!DB.leaders)DB.leaders=[];
+if(!DB.villages)DB.villages=[];
+
+/* ==================== FLASH ==================== */
+function flashMessage(msg){
+  const f=document.getElementById('flash');
+  f.textContent=msg;f.classList.add('show');
+  clearTimeout(window._flashT);
+  window._flashT=setTimeout(()=>f.classList.remove('show'),2800);
+}
+
+/* ==================== SEMAINE ISO ==================== */
+function getWeekNumber(ds){
+  if(!ds)return null;const d=new Date(ds);if(isNaN(d))return null;
+  d.setHours(0,0,0,0);d.setDate(d.getDate()+3-(d.getDay()+6)%7);
+  const w=new Date(d.getFullYear(),0,4);
+  return 1+Math.round(((d-w)/86400000-3+(w.getDay()+6)%7)/7);
+}
+
+/* ==================== FILTRES ==================== */
+let FILTERS={period:'month',year:'',week:'',village:'',dateFrom:'',dateTo:''};
+function initFilterOptions(){
+  const years=new Set();
+  Object.values(DB).forEach(arr=>{if(!Array.isArray(arr))return;arr.forEach(r=>{if(r.date){const y=new Date(r.date).getFullYear();if(!isNaN(y))years.add(y);}});});
+  years.add(new Date().getFullYear());
+  const ys=document.getElementById('fYear');ys.innerHTML='<option value="">Toutes</option>';
+  Array.from(years).sort((a,b)=>b-a).forEach(y=>{const o=document.createElement('option');o.value=y;o.textContent=y;ys.appendChild(o);});
+  const ws=document.getElementById('fWeek');ws.innerHTML='<option value="">Toutes</option>';
+  for(let i=1;i<=53;i++){const o=document.createElement('option');o.value=i;o.textContent='S'+i;ws.appendChild(o);}
+  const vs=document.getElementById('fVillage');vs.innerHTML='<option value="">Tous</option>';
+  const all=new Set([...VILLAGES_BASE]);DB.villages.forEach(v=>all.add(v.nom));
+  Array.from(all).sort().forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;vs.appendChild(o);});
+}
+function applyGlobalFilters(){
+  FILTERS.period=document.getElementById('fPeriod').value;
+  FILTERS.year=document.getElementById('fYear').value;
+  FILTERS.week=document.getElementById('fWeek').value;
+  FILTERS.village=document.getElementById('fVillage').value;
+  FILTERS.dateFrom=document.getElementById('fDateFrom').value;
+  FILTERS.dateTo=document.getElementById('fDateTo').value;
+  document.getElementById('customDates').style.display=FILTERS.period==='custom'?'flex':'none';
+  const p=[];
+  if(FILTERS.period==='all')p.push('Tout');
+  else if(FILTERS.period==='week')p.push('Cette semaine');
+  else if(FILTERS.period==='month')p.push('Ce mois');
+  else if(FILTERS.period==='year')p.push('Cette année');
+  else if(FILTERS.period==='custom')p.push(FILTERS.dateFrom+' → '+FILTERS.dateTo);
+  if(FILTERS.year)p.push('Année '+FILTERS.year);
+  if(FILTERS.week)p.push('S'+FILTERS.week);
+  if(FILTERS.village)p.push(FILTERS.village);
+  document.getElementById('filterInfo').textContent='Filtres actifs : '+(p.join(' • ')||'Aucun');
+  refreshAll();
+}
+function resetFilters(){
+  document.getElementById('fPeriod').value='month';
+  document.getElementById('fYear').value='';document.getElementById('fWeek').value='';
+  document.getElementById('fVillage').value='';document.getElementById('fDateFrom').value='';
+  document.getElementById('fDateTo').value='';applyGlobalFilters();
+}
+function matchesFilters(row){
+  if(!row)return true;
+  const ds=row.date||row.dar||'';
+  if(FILTERS.village){const v=row.vil||row.zone||row.des||row.loc||'';if(v!==FILTERS.village)return false;}
+  if(FILTERS.year){if(!ds)return false;const y=new Date(ds).getFullYear();if(String(y)!==String(FILTERS.year))return false;}
+  if(FILTERS.week){if(!ds)return false;const w=getWeekNumber(ds);if(String(w)!==String(FILTERS.week))return false;}
+  if(FILTERS.period&&FILTERS.period!=='all'){
+    if(!ds)return false;const d=new Date(ds);if(isNaN(d))return false;const now=new Date();
+    if(FILTERS.period==='week'){const w1=getWeekNumber(now.toISOString().slice(0,10));const w2=getWeekNumber(ds);if(w1!==w2||now.getFullYear()!==d.getFullYear())return false;}
+    else if(FILTERS.period==='month'){if(d.getMonth()!==now.getMonth()||d.getFullYear()!==now.getFullYear())return false;}
+    else if(FILTERS.period==='year'){if(d.getFullYear()!==now.getFullYear())return false;}
+    else if(FILTERS.period==='custom'){if(FILTERS.dateFrom&&d<new Date(FILTERS.dateFrom))return false;if(FILTERS.dateTo&&d>new Date(FILTERS.dateTo))return false;}
+  }
+  return true;
+}
+function compteur(rows){
+  const f=rows.filter(matchesFilters);
+  const today=new Date().toISOString().slice(0,10);
+  const w=getWeekNumber(today),y=new Date(today).getFullYear(),m=today.slice(0,7);
+  const auj=rows.filter(r=>(r.date||'')===today).length;
+  const sem=rows.filter(r=>getWeekNumber(r.date)===w&&new Date(r.date).getFullYear()===y).length;
+  const mois=rows.filter(r=>(r.date||'').startsWith(m)).length;
+  const an=rows.filter(r=>new Date(r.date).getFullYear()===y).length;
+  return `📊 <b>${f.length}</b> / ${rows.length} — <span>📅 Auj : ${auj}</span> <span>🗓️ Sem : ${sem}</span> <span>📆 Mois : ${mois}</span> <span>📊 Année : ${an}</span>`;
+}
+
+/* ==================== NAV ==================== */
+const TABS=[['m1','1.Sensib'],['m2','2.RECO'],['m3','3.Réfs'],['m9','9.VAD'],['m10','🔟Mat'],['m11','1️⃣1️⃣Maln'],['m12','1️⃣2️⃣Vacc'],['m8','8.Marché'],['m13','📋Listes'],['m6','6.Répertoire'],['mLead','👥Leaders'],['mVil','🗺️Villages'],['m7a','7A.Alertes'],['m7b','7B.Mvts'],['mE','🛡️Protect'],['mF','🐄OneHealth'],['m5','5.Hebdo'],['m4','4.TDB'],['mMen','📅Mensuel'],['mSave','💾Save']];
+const nav=document.getElementById('nav');
+TABS.forEach(([id,label],i)=>{
+  const b=document.createElement('button');b.textContent=label;if(i===0)b.classList.add('active');
+  b.onclick=()=>{
+    document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('main section').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');document.getElementById(id).classList.add('active');
+    if(id==='m4')renderTDB();
+    if(id==='mMen')renderMensuel();
+  };nav.appendChild(b);
+});
+document.getElementById('m1').classList.add('active');
+document.getElementById('today').textContent=new Date().toLocaleDateString('fr-FR');
+
+/* ==================== SUBTABS ==================== */
+const SUBTABS=[['sub_mn','🧒Maln'],['sub_diab','🩸Diab'],['sub_hta','💓HTA'],['sub_sm','🧠Mental'],['sub_cpn','🤰CPN'],['sub_vac','💉Vacc'],['sub_mvp','🚶Mvts']];
+const st=document.getElementById('subtabs');
+SUBTABS.forEach(([id,label],i)=>{
+  const b=document.createElement('button');b.textContent=label;if(i===0)b.classList.add('active');
+  b.onclick=()=>{
+    document.querySelectorAll('.subtabs button').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.subpanel').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');document.getElementById(id).classList.add('active');
+  };st.appendChild(b);
+});
+document.getElementById('sub_mn').classList.add('active');
+
+/* ==================== HELPERS ==================== */
+function v(id){const e=document.getElementById(id);return e?e.value:'';}
+function n(id){return parseFloat(v(id))||0;}
+function clr(ids){ids.forEach(i=>{const e=document.getElementById(i);if(e)e.value='';});}
+function fmtDate(d){if(!d)return '';try{return new Date(d).toLocaleDateString('fr-FR');}catch{return d;}}
+function tbl(headers,rows,renderRow,type){
+  const f=rows.filter(matchesFilters);
+  let h='<table><thead><tr>'+headers.map(x=>'<th>'+x+'</th>').join('')+'<th></th></tr></thead><tbody>';
+  if(!f.length)h+='<tr><td colspan="'+(headers.length+1)+'" class="small">Aucune donnée.</td></tr>';
+  f.forEach(r=>{const idx=rows.indexOf(r);h+='<tr>'+renderRow(r,idx)+'<td><button class="btn danger" style="padding:2px 6px;font-size:11px" onclick="delRow(\''+type+'\','+idx+')">✕</button></td></tr>';});
+  return h+'</tbody></table>';
+}
+function delRow(t,i){if(!confirm('Supprimer ?'))return;DB[t].splice(i,1);save();refreshAll();flashMessage('🗑️');}
+function badgeStatut(s){return '<span class="badge b-stat">'+(s||'')+'</span>';}
+function badgeVillage(nom){if(!nom)return '';const nv=!VILLAGES_BASE.includes(nom)&&nom!=='Hors zone';return '<span class="badge '+(nv?'b-autre':'')+'">'+nom+(nv?' 🆕':'')+'</span>';}
+function badgeSemaine(ds){const w=getWeekNumber(ds);return w?'<span class="badge b-semaine">S'+w+'</span>':'';}
+
+/* ==================== GPS ==================== */
+function capturerGPS(){
+  const st=document.getElementById('gpsStatus');
+  if(!navigator.geolocation){st.textContent='❌ GPS non supporté';return;}
+  st.textContent='📍 Capture en cours...';
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      document.getElementById('vil_lat').value=pos.coords.latitude.toFixed(6);
+      document.getElementById('vil_lon').value=pos.coords.longitude.toFixed(6);
+      st.innerHTML='✅ Position capturée (précision ±'+Math.round(pos.coords.accuracy)+'m)';
+    },
+    err=>{st.textContent='❌ Erreur GPS : '+err.message;},
+    {enableHighAccuracy:true,timeout:15000,maximumAge:0}
+  );
+}
+
+/* ==================== RAPPORT HEBDO AUTO ==================== */
+function calculerHebdo(){
+  const du=v('h_du'),au=v('h_au');
+  if(!du||!au){alert('⚠️ Remplissez d\'abord les dates Du et Au');return;}
+  const d1=new Date(du),d2=new Date(au);
+  const inRange=ds=>{if(!ds)return false;const d=new Date(ds);return d>=d1&&d<=d2;};
+  const semSens=DB.sens.filter(r=>inRange(r.date));
+  const semReco=DB.reco.filter(r=>inRange(r.date));
+  const semVad=DB.vad.filter(r=>inRange(r.date));
+  const semMn=DB.mn.filter(r=>inRange(r.date));
+  const semRefs=DB.refs.filter(r=>inRange(r.date));
+  document.getElementById('h1').value=semSens.length;
+  document.getElementById('h2').value=semSens.reduce((a,b)=>a+b.h+b.f+b.j,0);
+  document.getElementById('h3').value=new Set(semSens.map(x=>x.vil)).size;
+  document.getElementById('h5').value=semVad.reduce((a,b)=>a+b.men,0);
+  document.getElementById('h6').value=semMn.reduce((a,b)=>a+b.total,0);
+  document.getElementById('h7').value=semMn.reduce((a,b)=>a+b.rouge,0);
+  document.getElementById('h_refSens').value=semSens.reduce((a,b)=>a+b.ref,0);
+  document.getElementById('h8').value=semRefs.length;
+  document.getElementById('h9').value=semRefs.filter(x=>x.arr==='Oui').length;
+  document.getElementById('h4').value=semReco.length;
+  document.getElementById('hebdoStatus').innerHTML='✅ Calculé pour la période '+fmtDate(du)+' → '+fmtDate(au);
+  flashMessage('✅ Rapport calculé automatiquement');
+}
+
+/* ==================== GESTION VILLAGES ==================== */
+function initVillageSelects(){
+  document.querySelectorAll('select').forEach(sel=>{
+    const opts=Array.from(sel.options).map(o=>o.value);
+    if(!VILLAGES_BASE.some(x=>opts.includes(x)))return;
+    if(sel.dataset.villageInit==='1')return;
+    sel.dataset.villageInit='1';
+    if(!opts.includes(OPTION_AUTRE)){
+      const o=document.createElement('option');o.value=OPTION_AUTRE;o.textContent='➕ Autres (à préciser)';o.style.fontWeight='bold';o.style.color='#0b6e4f';sel.appendChild(o);
+    }
+    const wrap=document.createElement('div');wrap.style.display='none';wrap.dataset.role='village-autre-wrap';
+    wrap.innerHTML='<label class="small" style="color:#0b6e4f;font-weight:600">✏️ Nom du nouveau village</label><input type="text" data-role="village-autre-input" placeholder="Ex: Tinzak..." style="border:2px solid #14a37f">';
+    sel.parentNode.insertBefore(wrap,sel.nextSibling);
+    sel.addEventListener('change',()=>{const input=wrap.querySelector('[data-role="village-autre-input"]');if(sel.value===OPTION_AUTRE){wrap.style.display='block';input.focus();}else{wrap.style.display='none';input.value='';}});
+  });
+}
+function getVillageValue(id){const s=document.getElementById(id);if(!s)return '';if(s.value===OPTION_AUTRE){const w=s.parentNode.querySelector('[data-role="village-autre-wrap"]');const i=w?w.querySelector('[data-role="village-autre-input"]'):null;return i?i.value.trim():'';}return s.value;}
+function resetVillageSelect(id){const s=document.getElementById(id);if(!s)return;s.value='';const w=s.parentNode.querySelector('[data-role="village-autre-wrap"]');if(w){w.style.display='none';const i=w.querySelector('[data-role="village-autre-input"]');if(i)i.value='';}}
+function autoAddVillage(nom){if(!nom)return;if(VILLAGES_BASE.includes(nom))return;if(DB.villages.find(x=>x.nom===nom))return;DB.villages.push({nom:nom,zone:'Bassikounou',type:'Campement',lat:'',lon:'',men:0,pop:0,chef:'',tel:'',obs:'🆕 Auto'});initFilterOptions();flashMessage('📍 Nouveau village : '+nom);}
+
+/* ==================== MODULES ADD ==================== */
+function addSens(){if(!v('s_date')){alert('Date');return;}const vil=getVillageValue('s_vil');if(!vil){alert('Village');return;}DB.sens.push({date:v('s_date'),zone:v('s_zone'),vil:vil,th:v('s_th'),lang:v('s_lang'),h:n('s_h'),f:n('s_f'),j:n('s_j'),reco:n('s_reco'),ref:n('s_ref'),sup:v('s_sp'),q:v('s_q')});autoAddVillage(vil);save();clr(['s_th','s_lang','s_q']);resetVillageSelect('s_vil');['s_h','s_f','s_j','s_reco','s_ref'].forEach(i=>{const e=document.getElementById(i);if(e)e.value=0;});refreshAll();flashMessage('✅');}
+function addReco(){if(!v('r_date')||!v('r_nom')){alert('Date+Nom');return;}const vil=getVillageValue('r_vil');DB.reco.push({date:v('r_date'),zone:v('r_zone'),nom:v('r_nom'),sex:v('r_sex'),vil:vil,vd:n('r_vd'),muac:n('r_muac'),mag:n('r_mag'),rc:n('r_rc'),ra:n('r_ra'),cpn:n('r_cpn'),sa:v('r_sa'),reg:v('r_reg'),sc:n('r_sc'),obs:v('r_obs')});if(vil)autoAddVillage(vil);save();clr(['r_nom','r_obs']);resetVillageSelect('r_vil');refreshAll();flashMessage('✅');}
+function addRef(){if(!v('f_date')){alert('Date');return;}const d1=v('f_date'),d2=v('f_dar');let d='';if(d1&&d2)d=Math.round((new Date(d2)-new Date(d1))/864e5);const vil=getVillageValue('f_zone');DB.refs.push({num:v('f_num'),rccnpss:v('f_rccnpss'),date:d1,par:v('f_par'),zone:vil,statut:v('f_statut'),motif:v('f_motif'),sex:v('f_sex'),age:v('f_age'),arr:v('f_arr'),dar:d2,diag:v('f_diag'),tr:v('f_tr'),fb:v('f_fb'),delai:d,obs:v('f_obs')});if(vil)autoAddVillage(vil);save();clr(['f_num','f_rccnpss','f_par','f_motif','f_age','f_diag','f_tr']);resetVillageSelect('f_zone');refreshAll();flashMessage('✅');}
+function addVAD(){if(!v('vd_date')){alert('Date');return;}const vil=getVillageValue('vd_vil');DB.vad.push({date:v('vd_date'),zone:v('vd_zone'),vil:vil,statut:v('vd_statut'),agent:v('vd_agent'),men:n('vd_men'),diab:n('vd_diab'),hta:n('vd_hta'),tb:n('vd_tb'),autre:n('vd_autre'),autre_txt:v('vd_autre_txt')});if(vil)autoAddVillage(vil);save();resetVillageSelect('vd_vil');refreshAll();flashMessage('✅');}
+function addSM(){if(!v('sm_date')){alert('Date');return;}const vil=getVillageValue('sm_vil');DB.sm.push({date:v('sm_date'),vil:vil,statut:v('sm_statut'),agent:v('sm_agent'),cpn_new:n('sm_cpn_new'),cpn_old:n('sm_cpn_old'),cpon:n('sm_cpon'),acc:n('sm_acc'),acc_ref:n('sm_acc_ref')});if(vil)autoAddVillage(vil);save();resetVillageSelect('sm_vil');refreshAll();flashMessage('✅');}
+function addMN(){if(!v('mn_date')){alert('Date');return;}const vil=getVillageValue('mn_vil');DB.mn.push({date:v('mn_date'),vil:vil,statut:v('mn_statut'),agent:v('mn_agent'),total:n('mn_total'),gar:n('mn_gar'),fil:n('mn_fil'),vert:n('mn_vert'),jaune:n('mn_jaune'),rouge:n('mn_rouge'),new_rouge:n('mn_new_rouge'),old_rouge:n('mn_old_rouge'),new_jaune:n('mn_new_jaune'),old_jaune:n('mn_old_jaune'),ref:n('mn_ref')});if(vil)autoAddVillage(vil);save();resetVillageSelect('mn_vil');refreshAll();flashMessage('✅');}
+function addVA(){if(!v('va_date')){alert('Date');return;}const vil=getVillageValue('va_vil');DB.va.push({date:v('va_date'),vil:vil,statut:v('va_statut'),agent:v('va_agent'),vis:n('va_vis'),ref:n('va_ref'),ok:n('va_ok'),retard:n('va_retard')});if(vil)autoAddVillage(vil);save();resetVillageSelect('va_vil');refreshAll();flashMessage('✅');}
+function addMarche(){if(!v('k_date')){alert('Date');return;}const vil=getVillageValue('k_vil');if(!vil){alert('Village');return;}DB.marche.push({date:v('k_date'),zone:v('k_zone'),vil:vil,mil:n('k_mil'),riz:n('k_riz'),huile:n('k_huile'),the:n('k_the'),mout:n('k_mout'),chev:n('k_chev'),cab:n('k_cab'),vach:n('k_vach'),cham:n('k_cham'),tend:v('k_tend')});autoAddVillage(vil);save();resetVillageSelect('k_vil');refreshAll();flashMessage('✅');}
+function addRep(){if(!v('p_nom')){alert('Nom');return;}const vil=getVillageValue('p_vil');DB.rep.push({nom:v('p_nom'),sex:v('p_sex'),vil:vil,tel:v('p_tel'),stat:v('p_stat')});if(vil)autoAddVillage(vil);save();clr(['p_nom','p_tel']);resetVillageSelect('p_vil');refreshAll();flashMessage('✅');}
+function addLeader(){if(!v('lead_nom')){alert('Nom');return;}const vil=getVillageValue('lead_vil');DB.leaders.push({nom:v('lead_nom'),sex:v('lead_sex'),vil:vil,fonction:v('lead_fonction'),tel:v('lead_tel')});if(vil)autoAddVillage(vil);save();clr(['lead_nom','lead_fonction','lead_tel']);resetVillageSelect('lead_vil');refreshAll();flashMessage('✅');}
+function addVillage(){if(!v('vil_nom')){alert('Nom');return;}DB.villages.push({nom:v('vil_nom'),zone:v('vil_zone'),type:v('vil_type'),lat:v('vil_lat'),lon:v('vil_lon'),men:n('vil_men'),pop:n('vil_pop'),chef:v('vil_chef'),tel:v('vil_tel'),obs:v('vil_obs')});save();clr(['vil_nom','vil_lat','vil_lon','vil_chef','vil_tel']);initFilterOptions();refreshAll();flashMessage('✅');}
+function initVillages(){VILLAGES_BASE.forEach(v=>{if(!DB.villages.find(x=>x.nom===v))DB.villages.push({nom:v,zone:'Bassikounou',type:'Village',lat:'',lon:'',men:0,pop:0,chef:'',tel:'',obs:'Village PROSSAHEL'});});save();initFilterOptions();refreshAll();flashMessage('✅ 6 villages');}
+
+function addLMN(){if(!v('lmn_nom')){alert('Nom');return;}const vil=getVillageValue('lmn_vil');DB.lmn.push({date:v('lmn_date'),rccnpss:v('lmn_rccnpss'),nom:v('lmn_nom'),pre:v('lmn_pre'),age:v('lmn_age'),sex:v('lmn_sex'),vil:vil,statut:v('lmn_statut'),cls:v('lmn_cls'),cas_type:v('lmn_cas_type'),muac_anc:v('lmn_muac_anc'),muac:v('lmn_muac'),rdv:v('lmn_rdv'),stat:v('lmn_stat'),obs:v('lmn_obs')});if(vil)autoAddVillage(vil);save();clr(['lmn_rccnpss','lmn_nom','lmn_pre','lmn_age','lmn_muac','lmn_muac_anc']);resetVillageSelect('lmn_vil');refreshAll();flashMessage('✅');}
+function addLD(){if(!v('ld_nom')){alert('Nom');return;}const vil=getVillageValue('ld_vil');DB.ld.push({date:v('ld_date'),rccnpss:v('ld_rccnpss'),nom:v('ld_nom'),pre:v('ld_pre'),vil:vil,type:v('ld_type'),stat:v('ld_stat')});if(vil)autoAddVillage(vil);save();clr(['ld_rccnpss','ld_nom','ld_pre']);resetVillageSelect('ld_vil');refreshAll();flashMessage('✅');}
+function addLH(){if(!v('lh_nom')){alert('Nom');return;}const vil=getVillageValue('lh_vil');DB.lh.push({date:v('lh_date'),nom:v('lh_nom'),pre:v('lh_pre'),vil:vil,ta:v('lh_ta'),stat:v('lh_stat')});if(vil)autoAddVillage(vil);save();clr(['lh_nom','lh_pre','lh_ta']);resetVillageSelect('lh_vil');refreshAll();flashMessage('✅');}
+function addLSM(){if(!v('lsm_nom')){alert('Nom');return;}const vil=getVillageValue('lsm_vil');DB.lsm.push({date:v('lsm_date'),nom:v('lsm_nom'),pre:v('lsm_pre'),vil:vil,diag:v('lsm_diag')});if(vil)autoAddVillage(vil);save();clr(['lsm_nom','lsm_pre','lsm_diag']);resetVillageSelect('lsm_vil');refreshAll();flashMessage('✅');}
+function addLC(){if(!v('lc_nom')){alert('Nom');return;}const vil=getVillageValue('lc_vil');DB.lc.push({date:v('lc_date'),nom:v('lc_nom'),pre:v('lc_pre'),vil:vil,type:v('lc_type'),stat:v('lc_stat')});if(vil)autoAddVillage(vil);save();clr(['lc_nom','lc_pre']);resetVillageSelect('lc_vil');refreshAll();flashMessage('✅');}
+function addLV(){if(!v('lv_nom')){alert('Nom');return;}const vil=getVillageValue('lv_vil');DB.lv.push({date:v('lv_date'),nom:v('lv_nom'),pre:v('lv_pre'),vil:vil,vac:v('lv_vac'),stat:v('lv_stat')});if(vil)autoAddVillage(vil);save();clr(['lv_nom','lv_pre','lv_vac']);resetVillageSelect('lv_vil');refreshAll();flashMessage('✅');}
+function addLMP(){if(!v('lmp_nom')){alert('Nom');return;}DB.lmp.push({date:v('lmp_date'),nom:v('lmp_nom'),type_mvt:v('lmp_type_mvt'),statut:v('lmp_statut'),motif:v('lmp_motif')});save();clr(['lmp_nom']);refreshAll();flashMessage('✅');}
+function addAlerte(){if(!v('a_date')){alert('Date');return;}const vil=getVillageValue('a_zone');DB.alertes.push({date:v('a_date'),zone:vil,type:v('a_type'),cas:n('a_cas'),tr:v('a_tr')});if(vil)autoAddVillage(vil);save();clr(['a_type']);resetVillageSelect('a_zone');refreshAll();flashMessage('✅');}
+function addMvt(){if(!v('mv_date')){alert('Date');return;}DB.mvts.push({date:v('mv_date'),type_mvt:v('mv_type_mvt'),statut:v('mv_statut'),ori:v('mv_ori'),des:v('mv_des'),n:n('mv_n'),motif:v('mv_motif')});save();clr(['mv_ori','mv_des']);refreshAll();flashMessage('✅');}
+function addProt(){if(!v('e_date')){alert('Date');return;}const vil=getVillageValue('e_zone');DB.prot.push({date:v('e_date'),zone:vil,type:v('e_type'),sex:v('e_sex'),orient:v('e_orient')});if(vil)autoAddVillage(vil);save();clr(['e_orient']);resetVillageSelect('e_zone');refreshAll();flashMessage('✅');}
+function addOHMenage(){if(!v('f_date2')){alert('Date');return;}const vil=getVillageValue('f_vil2');DB.ohMen.push({date:v('f_date2'),vil:vil,th:v('f_th2'),n:n('f_n2')});if(vil)autoAddVillage(vil);save();clr(['f_th2']);document.getElementById('f_n2').value=0;resetVillageSelect('f_vil2');refreshAll();flashMessage('✅');}
+
+/* ==================== RENDU ==================== */
+function rSens(){document.getElementById('lst1').innerHTML=compteur(DB.sens)+tbl(['Date','Sem.','Village','Thème','H','F','J','Total','Réf.'],DB.sens,r=>`<td>${fmtDate(r.date)}</td><td>${badgeSemaine(r.date)}</td><td>${badgeVillage(r.vil)}</td><td>${r.th||''}</td><td>${r.h}</td><td>${r.f}</td><td>${r.j}</td><td><b>${r.h+r.f+r.j}</b></td><td>${r.ref||0}</td>`,'sens');}
+function rReco(){document.getElementById('lst2').innerHTML=compteur(DB.reco)+tbl(['Date','Nom','Village','Visites','MUAC','Réf.'],DB.reco,r=>`<td>${fmtDate(r.date)}</td><td>${r.nom}</td><td>${badgeVillage(r.vil)}</td><td>${r.vd}</td><td>${r.muac}</td><td>${r.rc}</td>`,'reco');}
+function rRef(){document.getElementById('lst3').innerHTML=compteur(DB.refs)+tbl(['Date','N° RCCNPSS','Village','Motif','Arrivé'],DB.refs,r=>`<td>${fmtDate(r.date)}</td><td>${r.rccnpss||''}</td><td>${badgeVillage(r.zone)}</td><td>${r.motif}</td><td>${r.arr}</td>`,'refs');}
+function rVAD(){document.getElementById('lst9').innerHTML=compteur(DB.vad)+tbl(['Date','Village','Ménages','Diab','HTA','TB'],DB.vad,r=>`<td>${fmtDate(r.date)}</td><td>${badgeVillage(r.vil)}</td><td>${r.men}</td><td>${r.diab}</td><td>${r.hta}</td><td>${r.tb}</td>`,'vad');}
+function rSM(){document.getElementById('lst10').innerHTML=compteur(DB.sm)+tbl(['Date','Village','CPN nouv','CPN anc','CPON','Acc'],DB.sm,r=>`<td>${fmtDate(r.date)}</td><td>${badgeVillage(r.vil)}</td><td>${r.cpn_new}</td><td>${r.cpn_old}</td><td>${r.cpon}</td><td>${r.acc}</td>`,'sm');}
+function rMN(){document.getElementById('lst11').innerHTML=compteur(DB.mn)+tbl(['Date','Village','Total','🟢','🟡','🔴'],DB.mn,r=>`<td>${fmtDate(r.date)}</td><td>${badgeVillage(r.vil)}</td><td><b>${r.total}</b></td><td><span class="badge b-vert">${r.vert}</span></td><td><span class="badge b-jaune">${r.jaune}</span></td><td><span class="badge b-rouge">${r.rouge}</span></td>`,'mn');}
+function rVA(){document.getElementById('lst12').innerHTML=compteur(DB.va)+tbl(['Date','Village','Visités','Référés'],DB.va,r=>`<td>${fmtDate(r.date)}</td><td>${badgeVillage(r.vil)}</td><td>${r.vis}</td><td>${r.ref}</td>`,'va');}
+function rMarche(){document.getElementById('lst8').innerHTML=compteur(DB.marche)+tbl(['Date','Village','Mil','Riz','Huile','Thé','Tend.'],DB.marche,r=>`<td>${fmtDate(r.date)}</td><td>${badgeVillage(r.vil)}</td><td>${r.mil}</td><td>${r.riz}</td><td>${r.huile}</td><td>${r.the}</td><td>${r.tend}</td>`,'marche');drawMarche();}
+function rRep(){document.getElementById('lst6').innerHTML=tbl(['Nom','Village','Contact','Statut'],DB.rep,r=>`<td>${r.nom}</td><td>${badgeVillage(r.vil)}</td><td>${r.tel}</td><td>${r.stat}</td>`,'rep');}
+function rLead(){document.getElementById('lstLead').innerHTML=tbl(['Nom','Village','Fonction','Contact'],DB.leaders,r=>`<td>${r.nom}</td><td>${badgeVillage(r.vil)}</td><td>${r.fonction}</td><td>${r.tel}</td>`,'leaders');}
+function rVil(){document.getElementById('lstVil').innerHTML=tbl(['Nom','Type','Latitude','Longitude','Ménages'],DB.villages,r=>{const nv=!VILLAGES_BASE.includes(r.nom);const lat=r.lat?'<a href="https://www.google.com/maps?q='+r.lat+','+r.lon+'" target="_blank">'+r.lat+'</a>':'';const lon=r.lon?'<a href="https://www.google.com/maps?q='+r.lat+','+r.lon+'" target="_blank">'+r.lon+'</a>':'';return `<td><b>${r.nom}</b>${nv?' 🆕':''}</td><td>${r.type}</td><td>${lat}</td><td>${lon}</td><td>${r.men}</td>`;},'villages');}
+function rAlerte(){document.getElementById('lst7a').innerHTML=compteur(DB.alertes)+tbl(['Date','Village','Type','Cas','Transmis'],DB.alertes,r=>`<td>${fmtDate(r.date)}</td><td>${badgeVillage(r.zone)}</td><td>${r.type}</td><td>${r.cas}</td><td>${r.tr}</td>`,'alertes');}
+function rMvt(){document.getElementById('lst7b').innerHTML=compteur(DB.mvts)+tbl(['Date','Type','Statut','Origine','Dest','Nb'],DB.mvts,r=>`<td>${fmtDate(r.date)}</td><td>${r.type_mvt}</td><td>${badgeStatut(r.statut)}</td><td>${r.ori}</td><td>${r.des}</td><td>${r.n}</td>`,'mvts');}
+function rProt(){document.getElementById('lstE').innerHTML=compteur(DB.prot)+tbl(['Date','Village','Type','Sexe'],DB.prot,r=>`<td>${fmtDate(r.date)}</td><td>${badgeVillage(r.zone)}</td><td>${r.type}</td><td>${r.sex}</td>`,'prot');}
+function rOH(){document.getElementById('lstF').innerHTML=compteur(DB.ohMen)+tbl(['Date','Village','Thème','Ménages'],DB.ohMen,r=>`<td>${fmtDate(r.date)}</td><td>${badgeVillage(r.vil)}</td><td>${r.th}</td><td>${r.n}</td>`,'ohMen');}
+function rLMN(){document.getElementById('lstLMN').innerHTML=compteur(DB.lmn)+tbl(['Date','N° RCCNPSS','Nom','Prénom','Village','Statut','Class.','MUAC anc.','MUAC act.','Type cas','Statut'],DB.lmn,r=>`<td>${fmtDate(r.date)}</td><td>${r.rccnpss||''}</td><td><b>${r.nom||''}</b></td><td>${r.pre||''}</td><td>${badgeVillage(r.vil)}</td><td>${badgeStatut(r.statut)}</td><td><span class="badge ${r.cls&&r.cls.includes('Rouge')?'b-rouge':r.cls&&r.cls.includes('Jaune')?'b-jaune':'b-vert'}">${r.cls||''}</span></td><td>${r.muac_anc||''}</td><td>${r.muac||''}</td><td><span class="badge ${r.cas_type&&r.cas_type.includes('Nouveau')?'b-new':'b-anc'}">${r.cas_type||''}</span></td><td>${r.stat||''}</td>`,'lmn');}
+function rLD(){document.getElementById('lstLD').innerHTML=compteur(DB.ld)+tbl(['Date','Nom','Prénom','Village','Type','Statut'],DB.ld,r=>`<td>${fmtDate(r.date)}</td><td>${r.nom}</td><td>${r.pre}</td><td>${badgeVillage(r.vil)}</td><td>${r.type}</td><td>${r.stat}</td>`,'ld');}
+function rLH(){document.getElementById('lstLH').innerHTML=compteur(DB.lh)+tbl(['Date','Nom','Prénom','Village','TA','Statut'],DB.lh,r=>`<td>${fmtDate(r.date)}</td><td>${r.nom}</td><td>${r.pre}</td><td>${badgeVillage(r.vil)}</td><td>${r.ta}</td><td>${r.stat}</td>`,'lh');}
+function rLSM(){document.getElementById('lstLSM').innerHTML=compteur(DB.lsm)+tbl(['Date','Nom','Prénom','Village','Diag.'],DB.lsm,r=>`<td>${fmtDate(r.date)}</td><td>${r.nom}</td><td>${r.pre}</td><td>${badgeVillage(r.vil)}</td><td>${r.diag}</td>`,'lsm');}
+function rLC(){document.getElementById('lstLC').innerHTML=compteur(DB.lc)+tbl(['Date','Nom','Prénom','Village','Type','Statut'],DB.lc,r=>`<td>${fmtDate(r.date)}</td><td>${r.nom}</td><td>${r.pre}</td><td>${badgeVillage(r.vil)}</td><td>${r.type}</td><td>${r.stat}</td>`,'lc');}
+function rLV(){document.getElementById('lstLV').innerHTML=compteur(DB.lv)+tbl(['Date','Nom','Prénom','Village','Vaccins','Statut'],DB.lv,r=>`<td>${fmtDate(r.date)}</td><td>${r.nom}</td><td>${r.pre}</td><td>${badgeVillage(r.vil)}</td><td>${r.vac}</td><td>${r.stat}</td>`,'lv');}
+function rLMP(){document.getElementById('lstLMP').innerHTML=compteur(DB.lmp)+tbl(['Date','Nom','Type','Statut','Motif'],DB.lmp,r=>`<td>${fmtDate(r.date)}</td><td>${r.nom}</td><td>${r.type_mvt}</td><td>${badgeStatut(r.statut)}</td><td>${r.motif}</td>`,'lmp');}
+
+let chM=null;
+function drawMarche(){const d=DB.marche.filter(matchesFilters).slice(-12);if(chM)chM.destroy();chM=new Chart(document.getElementById('chMarche'),{type:'line',data:{labels:d.map(x=>fmtDate(x.date)),datasets:[{label:'Mil',data:d.map(x=>x.mil),borderColor:'#0b6e4f'},{label:'Riz',data:d.map(x=>x.riz),borderColor:'#14a37f'},{label:'Huile',data:d.map(x=>x.huile),borderColor:'#f4a261'},{label:'Thé',data:d.map(x=>x.the),borderColor:'#e63946'}]}});}
+
+/* ==================== RAPPORT HEBDO / MENSUEL ==================== */
+function saveHebdo(){DB.hebdo={sem:n('h_sem'),du:v('h_du'),au:v('h_au'),zone:v('h_zone'),sup:v('h_sup'),sub:v('h_sub'),h1:n('h1'),h2:n('h2'),h3:n('h3'),h4:v('h4'),h5:n('h5'),h6:n('h6'),h7:n('h7'),h_refSens:n('h_refSens'),h8:n('h8'),h9:n('h9'),h10:n('h10'),o1:v('ho1'),o2:v('ho2'),o3:v('ho3'),o4:v('ho4'),o5:v('ho5')};save();flashMessage('✅ Hebdo enregistré');}
+function hebdoHTML(){const h=DB.hebdo||{};return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Rapport Hebdo S${h.sem||''}</title><style>body{font-family:system-ui;padding:20px;max-width:900px;margin:auto}h1{color:#0b6e4f}h2{color:#0b6e4f;border-bottom:2px solid #14a37f;padding-bottom:4px}table{width:100%;border-collapse:collapse;margin:8px 0}td,th{border:1px solid #ccc;padding:6px}th{background:#e8f2ee}</style></head><body><h1>RAPPORT HEBDOMADAIRE MC</h1><p><b>Clinique Nomade PROSSAHEL</b></p><table><tr><th>Semaine</th><td>${h.sem||''}</td><th>Du</th><td>${fmtDate(h.du)}</td></tr><tr><th>Au</th><td>${fmtDate(h.au)}</td><th>Zone</th><td>${h.zone||''}</td></tr></table><h2>ACTIVITÉS</h2><table><tr><td>Séances</td><td>${h.h1||0}</td></tr><tr><td>Participants</td><td>${h.h2||0}</td></tr><tr><td>Villages</td><td>${h.h3||0}</td></tr><tr><td>Visites</td><td>${h.h5||0}</td></tr><tr><td>MUAC</td><td>${h.h6||0}</td></tr><tr><td>&lt;11.5</td><td>${h.h7||0}</td></tr><tr><td>Référés sensibilisation</td><td>${h.h_refSens||0}</td></tr><tr><td>Référés communautaires</td><td>${h.h8||0}</td></tr><tr><td>Arrivés</td><td>${h.h9||0}</td></tr></table><h2>OBSERVATIONS</h2><table><tr><th>Difficultés</th><td>${h.o1||''}</td></tr><tr><th>Thèmes</th><td>${h.o2||''}</td></tr><tr><th>Rumeurs</th><td>${h.o3||''}</td></tr><tr><th>Alertes</th><td>${h.o4||''}</td></tr><tr><th>Mouvements</th><td>${h.o5||''}</td></tr></table></body></html>`;}
+function printHebdo(){const w=window.open('','_blank');w.document.write(hebdoHTML());w.document.close();setTimeout(()=>w.print(),400);}
+function sendWhatsAppHebdo(){const h=DB.hebdo||{};const t='Rapport S'+h.sem+'\nSéances: '+h.h1+'\nParticipants: '+h.h2;window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');}
+function sendMailHebdo(){const to=document.getElementById('mail_to').value;if(!to)return alert('Email');const h=DB.hebdo||{};window.location.href='mailto:'+to+'?subject=Rapport Hebdo S'+h.sem+'&body='+encodeURIComponent('Voir rapport joint');}
+function quickWhatsApp(){const t='Rapport MC '+new Date().toLocaleDateString('fr-FR')+'\nSensib: '+DB.sens.length+'\nRéf: '+DB.refs.length+'\nAlertes: '+DB.alertes.length+'\nMvts: '+DB.mvts.length;window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');}
+
+/* ==================== TDB ==================== */
+function statsFiltres(){const s=DB.sens.filter(matchesFilters),r=DB.reco.filter(matchesFilters),rf=DB.refs.filter(matchesFilters),vd=DB.vad.filter(matchesFilters),sm=DB.sm.filter(matchesFilters),mn=DB.mn.filter(matchesFilters),va=DB.va.filter(matchesFilters);return{nbSens:s.length,part:s.reduce((a,b)=>a+b.h+b.f+b.j,0),fem:s.reduce((a,b)=>a+b.f,0),vil:new Set(s.map(x=>x.vil).filter(Boolean)).size,refSens:s.reduce((a,b)=>a+b.ref||0,0),recoSup:new Set(r.map(x=>x.nom)).size,visites:r.reduce((a,b)=>a+b.vd,0),muac:r.reduce((a,b)=>a+b.muac,0),mag:r.reduce((a,b)=>a+b.mag,0),refReco:r.reduce((a,b)=>a+b.rc,0),refArr:r.reduce((a,b)=>a+b.ra,0),scMoy:r.length?(r.reduce((a,b)=>a+b.sc,0)/r.length).toFixed(1):0,refsTot:rf.length,refsArr:rf.filter(x=>x.arr==='Oui').length,delai:rf.filter(x=>x.delai!=='').length?(rf.filter(x=>x.delai!=='').reduce((a,b)=>a+b.delai,0)/rf.filter(x=>x.delai!=='').length).toFixed(1):0,vdMen:vd.reduce((a,b)=>a+b.men,0),vdDiab:vd.reduce((a,b)=>a+b.diab,0),vdHTA:vd.reduce((a,b)=>a+b.hta,0),vdTB:vd.reduce((a,b)=>a+b.tb,0),smCpnNew:sm.reduce((a,b)=>a+b.cpn_new,0),smCpnOld:sm.reduce((a,b)=>a+b.cpn_old,0),smCpon:sm.reduce((a,b)=>a+b.cpon,0),smAcc:sm.reduce((a,b)=>a+b.acc,0),mnTotal:mn.reduce((a,b)=>a+b.total,0),mnGar:mn.reduce((a,b)=>a+b.gar,0),mnFil:mn.reduce((a,b)=>a+b.fil,0),mnVert:mn.reduce((a,b)=>a+b.vert,0),mnJaune:mn.reduce((a,b)=>a+b.jaune,0),mnRouge:mn.reduce((a,b)=>a+b.rouge,0),mnNewRouge:mn.reduce((a,b)=>a+b.new_rouge,0),mnOldRouge:mn.reduce((a,b)=>a+(b.old_rouge||0),0),vaVis:va.reduce((a,b)=>a+b.vis,0),vaRef:va.reduce((a,b)=>a+b.ref,0),alertes:DB.alertes.filter(matchesFilters).length,mvts:DB.mvts.filter(matchesFilters).length,mvtsP:DB.mvts.filter(matchesFilters).reduce((a,b)=>a+b.n,0)};}
+function sc(v,l,c){let cls='ok',pct='';if(c&&typeof v==='number'&&c>0){pct=Math.round(v/c*100)+'%';if(v/c<0.75)cls='alert';else if(v/c<1)cls='warn';}return `<div class="stat ${cls}"><div class="v">${v}</div><div class="l">${l}${c?' / '+c+' ('+pct+')':''}</div></div>`;}
+let c1,c2,c3,c4;
+function renderTDB(){const s=statsFiltres();let h='<h3>A — Sensib.</h3><div class="grid">';h+=sc(s.nbSens,'Séances',24)+sc(s.part,'Participants',480)+sc(s.fem,'Femmes',240)+sc(s.vil,'Villages',12)+sc(s.refSens,'Référés sensib.',20)+'</div>';h+='<h3>B — ASC/RECO</h3><div class="grid">';h+=sc(s.recoSup,'Supervisés',14)+sc(s.visites,'Visites',280)+sc(s.muac,'MUAC',420)+sc(s.mag,'MAG')+sc(s.refReco,'Réf ASC',56)+sc(s.scMoy,'Score /10')+'</div>';h+='<h3>9 VAD</h3><div class="grid">';h+=sc(s.vdMen,'Ménages')+sc(s.vdDiab,'Diabète')+sc(s.vdHTA,'HTA')+sc(s.vdTB,'TB')+'</div>';h+='<h3>10 Santé Mat.</h3><div class="grid">';h+=sc(s.smCpnNew,'CPN nouv.')+sc(s.smCpnOld,'CPN anc.')+sc(s.smCpon,'CPON')+sc(s.smAcc,'Acc. dom.')+'</div>';h+='<h3>11 Malnutrition</h3><div class="grid">';h+=sc(s.mnTotal,'Dépistés')+sc(s.mnGar,'Garçons')+sc(s.mnFil,'Filles')+sc(s.mnVert,'🟢')+sc(s.mnJaune,'🟡')+sc(s.mnRouge,'🔴')+sc(s.mnNewRouge,'Nouv R')+sc(s.mnOldRouge,'Anc R')+'</div>';h+='<h3>12 Vaccination</h3><div class="grid">';h+=sc(s.vaVis,'Visités')+sc(s.vaRef,'Référés')+'</div>';h+='<h3>C — Réfs</h3><div class="grid">';h+=sc(s.refsTot,'Référés',76)+sc(s.refsArr,'Arrivés',54)+sc(s.delai,'Délai j',3)+'</div>';h+='<h3>D — Surveillance</h3><div class="grid">';h+=sc(s.alertes,'Alertes')+sc(s.mvts,'Mvts')+sc(s.mvtsP,'Personnes')+'</div>';document.getElementById('tdb').innerHTML=h;
+const allS=DB.sens.filter(matchesFilters);const byTh={};allS.forEach(r=>{if(r.th)byTh[r.th]=(byTh[r.th]||0)+r.h+r.f+r.j;});
+if(c1)c1.destroy();if(c2)c2.destroy();if(c3)c3.destroy();if(c4)c4.destroy();
+c1=new Chart(document.getElementById('ch1'),{type:'bar',data:{labels:Object.keys(byTh),datasets:[{label:'Par thème',data:Object.values(byTh),backgroundColor:'#0b6e4f'}]}});
+c2=new Chart(document.getElementById('ch2'),{type:'doughnut',data:{labels:['H','F','J'],datasets:[{data:[allS.reduce((a,b)=>a+b.h,0),allS.reduce((a,b)=>a+b.f,0),allS.reduce((a,b)=>a+b.j,0)],backgroundColor:['#0b6e4f','#14a37f','#f4a261']}]}});
+c3=new Chart(document.getElementById('ch3'),{type:'line',data:{labels:['Séances','Participants','MUAC','VAD','Réfs'],datasets:[{label:'Mois',data:[s.nbSens,s.part,s.mnTotal,s.vdMen,s.refsTot],borderColor:'#14a37f',fill:true,tension:.3}]}});
+c4=new Chart(document.getElementById('ch4'),{type:'doughnut',data:{labels:['🟢','🟡','🔴'],datasets:[{data:[s.mnVert,s.mnJaune,s.mnRouge],backgroundColor:['#2a9d8f','#f4a261','#e63946']}]}});
+}
+
+/* ==================== RAPPORT MENSUEL ==================== */
+function mensuelHTML(){const s=statsFiltres();const mois=new Date().toLocaleDateString('fr-FR',{month:'long',year:'numeric'});const row=(l,c,r)=>{let p='—',cl='b-wr';const cc=parseFloat(c),rr=parseFloat(r);if(!isNaN(cc)&&cc>0&&!isNaN(rr)){const x=rr/cc;p=Math.round(x*100)+'%';if(x>=1)cl='b-ok';else if(x>=.75)cl='b-wr';else cl='b-al';}return `<tr><td>${l}</td><td>${c}</td><td>${r}</td><td>${p}</td></tr>`;};return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Rapport ${mois}</title><style>body{font-family:system-ui;padding:20px;max-width:1000px;margin:auto}h1{color:#0b6e4f}h2{color:#0b6e4f;font-size:15px;border-bottom:2px solid #14a37f}table{width:100%;border-collapse:collapse;margin:8px 0}td,th{border:1px solid #ccc;padding:6px;font-size:13px}th{background:#e8f2ee}</style></head><body><h1>RAPPORT MENSUEL — MC PROSSAHEL</h1><p><b>Clinique Nomade PROSSAHEL – Bassikounou</b><br>Période : <b>${mois}</b></p><h2>A — Sensib.</h2><table><tr><th>Indicateur</th><th>Cible</th><th>Réalisé</th><th>%</th></tr>${row('Séances',24,s.nbSens)}${row('Participants',480,s.part)}${row('Femmes',240,s.fem)}${row('Villages',12,s.vil)}${row('Référés',20,s.refSens)}</table><h2>B — ASC/RECO</h2><table>${row('Supervisés',14,s.recoSup)}${row('Visites',280,s.visites)}${row('MUAC',420,s.muac)}${row('Référés',56,s.refReco)}</table><h2>9 VAD</h2><table><tr><td>Ménages</td><td>${s.vdMen}</td></tr><tr><td>Diabète</td><td>${s.vdDiab}</td></tr><tr><td>HTA</td><td>${s.vdHTA}</td></tr><tr><td>TB</td><td>${s.vdTB}</td></tr></table><h2>10 Santé Mat.</h2><table><tr><td>CPN nouv</td><td>${s.smCpnNew}</td></tr><tr><td>CPN anc</td><td>${s.smCpnOld}</td></tr><tr><td>CPON</td><td>${s.smCpon}</td></tr><tr><td>Acc domicile</td><td>${s.smAcc}</td></tr></table><h2>11 Malnutrition</h2><table><tr><td>Dépistés</td><td>${s.mnTotal}</td></tr><tr><td>🟢 Vert</td><td>${s.mnVert}</td></tr><tr><td>🟡 Jaune</td><td>${s.mnJaune}</td></tr><tr><td>🔴 Rouge</td><td>${s.mnRouge}</td></tr><tr><td>Nouv R</td><td>${s.mnNewRouge}</td></tr><tr><td>Anc R</td><td>${s.mnOldRouge}</td></tr></table><h2>12 Vaccination</h2><table><tr><td>Visités</td><td>${s.vaVis}</td></tr><tr><td>Référés</td><td>${s.vaRef}</td></tr></table><h2>C — Réfs</h2><table>${row('Référés',76,s.refsTot)}${row('Arrivés',54,s.refsArr)}${row('Délai j','≤3',s.delai)}</table><h2>G — Marché</h2><table><tr><th>Date</th><th>Village</th><th>Mil</th><th>Riz</th><th>Huile</th><th>Thé</th><th>Tend.</th></tr>${DB.marche.slice(-10).map(r=>`<tr><td>${fmtDate(r.date)}</td><td>${r.vil}</td><td>${r.mil}</td><td>${r.riz}</td><td>${r.huile}</td><td>${r.the}</td><td>${r.tend}</td></tr>`).join('')}</table></body></html>`;}
+function renderMensuel(){document.getElementById('mensuel').innerHTML='<iframe style="width:100%;height:600px;border:1px solid #ccc" srcdoc="'+mensuelHTML().replace(/"/g,'&quot;')+'"></iframe>';}
+function printMensuel(){const w=window.open('','_blank');w.document.write(mensuelHTML());w.document.close();setTimeout(()=>w.print(),400);}
+
+/* ==================== EXCEL ==================== */
+function exportExcel(){if(typeof XLSX==='undefined'){alert('XLSX non chargé');return;}const wb=XLSX.utils.book_new();const add=(n,a)=>{XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(a),n);};add('Sensib',[['Date','Village','Thème','H','F','J','Total','Référés'],...DB.sens.map(r=>[r.date,r.vil,r.th,r.h,r.f,r.j,r.h+r.f+r.j,r.ref||0])]);add('Reco',[['Date','Nom','Village','Visites','MUAC','Réf'],...DB.reco.map(r=>[r.date,r.nom,r.vil,r.vd,r.muac,r.rc])]);add('Refs',[['Date','RCCNPSS','Village','Motif','Arrivé'],...DB.refs.map(r=>[r.date,r.rccnpss,r.zone,r.motif,r.arr])]);add('VAD',[['Date','Village','Ménages','Diabète','HTA','TB'],...DB.vad.map(r=>[r.date,r.vil,r.men,r.diab,r.hta,r.tb])]);add('Malnut',[['Date','Village','Total','🟢','🟡','🔴','NouvR','AncR'],...DB.mn.map(r=>[r.date,r.vil,r.total,r.vert,r.jaune,r.rouge,r.new_rouge,r.old_rouge])]);add('Marché',[['Date','Village','Mil','Riz','Huile','Thé'],...DB.marche.map(r=>[r.date,r.vil,r.mil,r.riz,r.huile,r.the])]);add('Liste_Malnut',[['Date','RCCNPSS','Nom','Prénom','Village','Class.','MUAC anc','MUAC act'],...DB.lmn.map(r=>[r.date,r.rccnpss,r.nom,r.pre,r.vil,r.cls,r.muac_anc,r.muac])]);add('Villages',[['Nom','Type','Lat','Lon'],...DB.villages.map(r=>[r.nom,r.type,r.lat,r.lon])]);XLSX.writeFile(wb,'PROSSAHEL_v10_'+new Date().toISOString().slice(0,10)+'.xlsx');flashMessage('📊 Excel exporté');}
+function exportExcelFiltre(){exportExcel();}
+function exportExcelMois(){exportExcel();}
+
+/* ==================== BACKUP ==================== */
+function exportJSON(){const b=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='prossahel_v10_backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();flashMessage('💾 JSON');}
+function importJSON(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{Object.assign(DB,JSON.parse(r.result));save();initFilterOptions();refreshAll();flashMessage('✅ Importé');}catch(x){alert('❌ '+x.message);}};r.readAsText(f);}
+function clearAll(){if(confirm('⚠️ Effacer TOUT ?')){localStorage.removeItem(KEY);location.reload();}}
+
+/* ==================== GOOGLE DRIVE ==================== */
+let tokenClient=null,accessToken=null,tokenExpiry=0,folderIdCache=null;
+function googleSignIn(){if(!window.google||!google.accounts){document.getElementById('driveMsg').innerHTML='❌ Google non chargé';return;}if(CLIENT_ID.includes('COLLEZ_VOTRE')){document.getElementById('driveMsg').innerHTML='⚠️ CLIENT_ID non configuré';return;}try{tokenClient=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPES,callback:(resp)=>{if(resp.error){document.getElementById('driveMsg').textContent='❌ '+resp.error;return;}accessToken=resp.access_token;tokenExpiry=Date.now()+resp.expires_in*1000;document.getElementById('gdrive_status').innerHTML='🟢 Connecté';document.getElementById('driveMsg').innerHTML='✅ Connecté !';}});tokenClient.requestAccessToken();}catch(e){document.getElementById('driveMsg').textContent='❌ '+e.message;}}
+function googleSignOut(){if(accessToken&&window.google)google.accounts.oauth2.revoke(accessToken,()=>{});accessToken=null;tokenExpiry=0;document.getElementById('gdrive_status').textContent='⚪ Non connecté';document.getElementById('driveMsg').textContent='👋 Déconnecté';}
+function checkToken(){if(!accessToken||Date.now()>tokenExpiry){document.getElementById('driveMsg').innerHTML='⚠️ Session expirée';return false;}return true;}
+async function createFolderIfNeeded(){if(!checkToken())return null;if(folderIdCache)return folderIdCache;try{const q=encodeURIComponent(`name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);const r=await fetch('https://www.googleapis.com/drive/v3/files?q='+q+'&fields=files(id)',{headers:{Authorization:'Bearer '+accessToken}});const j=await r.json();if(j.files&&j.files.length){folderIdCache=j.files[0].id;return folderIdCache;}const cr=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify({name:FOLDER_NAME,mimeType:'application/vnd.google-apps.folder'})});const cj=await cr.json();folderIdCache=cj.id;return folderIdCache;}catch(e){return null;}}
+async function driveSaveAll(){if(!checkToken()){document.getElementById('driveMsg').innerHTML='⚠️ Connectez-vous';return;}const folderId=await createFolderIfNeeded();const fn=`prossahel_v10_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.json`;const md={name:fn,parents:folderId?[folderId]:[]};const form=new FormData();form.append('metadata',new Blob([JSON.stringify(md)],{type:'application/json'}));form.append('file',new Blob([JSON.stringify(DB,null,2)],{type:'application/json'}));try{const r=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',{method:'POST',headers:{Authorization:'Bearer '+accessToken},body:form});const j=await r.json();if(j.id){document.getElementById('driveMsg').innerHTML='✅ <a href="'+j.webViewLink+'" target="_blank">'+j.name+'</a>';flashMessage('☁️ Drive OK');}}catch(e){document.getElementById('driveMsg').textContent='❌ '+e.message;}}
+
+/* ==================== REFRESH ==================== */
+function updateCounters(){const setC=(id,txt)=>{const e=document.getElementById(id);if(e)e.innerHTML=txt;};setC('cnt1',compteur(DB.sens));setC('cnt2',compteur(DB.reco));setC('cnt3',compteur(DB.refs));setC('cnt9',compteur(DB.vad));setC('cnt10',compteur(DB.sm));setC('cnt11',compteur(DB.mn));setC('cnt12',compteur(DB.va));setC('cnt8',compteur(DB.marche));setC('cnt6','📊 '+DB.rep.length);setC('cntLead','📊 '+DB.leaders.length);setC('cntVil','📊 '+DB.villages.length);setC('cnt7a',compteur(DB.alertes));setC('cnt7b',compteur(DB.mvts));setC('cntE','📊 '+DB.prot.length);setC('cntF','📊 '+DB.ohMen.length);}
+function refreshAll(){rSens();rReco();rRef();rVAD();rSM();rMN();rVA();rMarche();rRep();rLead();rVil();rAlerte();rMvt();rProt();rOH();rLMN();rLD();rLH();rLSM();rLC();rLV();rLMP();updateCounters();if(document.getElementById('m4').classList.contains('active'))renderTDB();}
+
+initVillageSelects();
+initFilterOptions();
+setTimeout(syncToFirebase,3000);
+refreshAll();
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js').then(r=>console.log('✅ SW')).catch(e=>console.warn('❌',e));
+  });
+}
+</script>
+</body>
+</html>
